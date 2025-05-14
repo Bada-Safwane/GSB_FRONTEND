@@ -17,7 +17,7 @@ function LoginForm({ onSuccess }) {
     e.preventDefault()
     
     if (!email || !password) {
-      setError('Please fill in all fields')
+      setError('Veuillez remplir tous les champs')
       return
     }
     
@@ -27,7 +27,7 @@ function LoginForm({ onSuccess }) {
       await login(email, password)
       if (onSuccess) onSuccess()
     } catch (err) {
-      setError('Failed to sign in. Please check your credentials.')
+      setError('Échec de la connexion. Veuillez vérifier vos identifiants.')
       console.error(err)
     } finally {
       setLoading(false)
@@ -47,7 +47,7 @@ function LoginForm({ onSuccess }) {
         <Input
           type="email"
           id="email"
-          placeholder="Email Address"
+          placeholder="Adresse email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="pl-10"
@@ -60,7 +60,7 @@ function LoginForm({ onSuccess }) {
         <Input
           type="password"
           id="password"
-          placeholder="Password"
+          placeholder="Mot de passe"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="pl-10"
@@ -73,13 +73,13 @@ function LoginForm({ onSuccess }) {
         fullWidth
         disabled={loading}
       >
-        {loading ? 'Signing in...' : 'Sign In'}
+        {loading ? 'Connexion en cours...' : 'Se connecter'}
       </Button>
       
       <p className="text-center text-gray-600 text-sm">
-        Don't have an account?{' '}
+        Vous n'avez pas de compte ?{' '}
         <Link to="/signup" className="text-primary-500 hover:text-primary-600 font-medium">
-          Sign Up
+          S'inscrire
         </Link>
       </p>
     </form>

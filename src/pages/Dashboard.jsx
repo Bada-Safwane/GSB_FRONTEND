@@ -56,8 +56,8 @@ function Dashboard() {
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Welcome back, {user?.name}</h1>
-          <p className="text-gray-600">Manage your invoices and track payments</p>
+          <h1 className="text-2xl font-bold text-gray-900">Bienvenue, {user?.name}</h1>
+          <p className="text-gray-600">Gerer vos notes de frais et suivez vos dépenses</p>
         </div>
         
         <div className="mb-8 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -109,7 +109,7 @@ function Dashboard() {
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="text-xl font-semibold">{selectedInvoice.clientName}</h3>
-                <p className="text-gray-500 text-sm mt-1">Invoice #{selectedInvoice.id}</p>
+                <p className="text-gray-500 text-sm mt-1">Note #{selectedInvoice.id}</p>
               </div>
               <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusClass(selectedInvoice.status)}`}>
                 {selectedInvoice.status.charAt(0).toUpperCase() + selectedInvoice.status.slice(1)}
@@ -136,7 +136,7 @@ function Dashboard() {
             
             <div className="border-t border-gray-200 pt-4">
               <div className="flex justify-between">
-                <p className="text-lg font-medium">Total Amount</p>
+                <p className="text-lg font-medium">Cout total</p>
                 <p className="text-lg font-semibold">${selectedInvoice.amount.toFixed(2)}</p>
               </div>
             </div>
@@ -149,7 +149,7 @@ function Dashboard() {
                   handleEdit(selectedInvoice)
                 }}
               >
-                Edit Invoice
+                modifier
               </Button>
               <Button>
                 {selectedInvoice.status === 'paid' ? 'Download PDF' : 'Mark as Paid'}

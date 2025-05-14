@@ -19,12 +19,12 @@ function SignupForm({ onSuccess }) {
     e.preventDefault()
     
     if (!name || !email || !password || !confirmPassword) {
-      setError('Please fill in all fields')
+      setError('Veuillez remplir tous les champs')
       return
     }
     
     if (password !== confirmPassword) {
-      setError('Passwords do not match')
+      setError('Les mots de passe ne correspondent pas')
       return
     }
     
@@ -34,7 +34,7 @@ function SignupForm({ onSuccess }) {
       await signup(email, password, name)
       if (onSuccess) onSuccess()
     } catch (err) {
-      setError('Failed to create an account')
+      setError('Échec de la création du compte')
       console.error(err)
     } finally {
       setLoading(false)
@@ -54,7 +54,7 @@ function SignupForm({ onSuccess }) {
         <Input
           type="text"
           id="name"
-          placeholder="Full Name"
+          placeholder="Nom complet"
           value={name}
           onChange={(e) => setName(e.target.value)}
           className="pl-10"
@@ -67,7 +67,7 @@ function SignupForm({ onSuccess }) {
         <Input
           type="email"
           id="email"
-          placeholder="Email Address"
+          placeholder="Adresse email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           className="pl-10"
@@ -80,7 +80,7 @@ function SignupForm({ onSuccess }) {
         <Input
           type="password"
           id="password"
-          placeholder="Password"
+          placeholder="Mot de passe"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           className="pl-10"
@@ -93,7 +93,7 @@ function SignupForm({ onSuccess }) {
         <Input
           type="password"
           id="confirmPassword"
-          placeholder="Confirm Password"
+          placeholder="Confirmer le mot de passe"
           value={confirmPassword}
           onChange={(e) => setConfirmPassword(e.target.value)}
           className="pl-10"
@@ -106,13 +106,13 @@ function SignupForm({ onSuccess }) {
         fullWidth
         disabled={loading}
       >
-        {loading ? 'Creating account...' : 'Create Account'}
+        {loading ? 'Création du compte...' : 'Créer un compte'}
       </Button>
       
       <p className="text-center text-gray-600 text-sm">
-        Already have an account?{' '}
+        Vous avez déjà un compte ?{' '}
         <Link to="/login" className="text-primary-500 hover:text-primary-600 font-medium">
-          Sign In
+          Se connecter
         </Link>
       </p>
     </form>
