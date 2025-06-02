@@ -14,7 +14,7 @@ function ProfileAvatar({ src, alt, className = '', size = 'md', ...props }) {
       {...props}
     >
       <img 
-        src={src || 'https://i.pravatar.cc/150'} 
+        src={src || '/src/assets/11435235.png'} 
         alt={alt || 'Profile'} 
         className="w-full h-full object-cover"
       />

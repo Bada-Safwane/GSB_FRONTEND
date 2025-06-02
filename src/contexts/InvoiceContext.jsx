@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
-import { format } from 'date-fns'
+import { useAuth } from './AuthContext'
 
 // Create context
 const InvoiceContext = createContext()
@@ -13,95 +13,115 @@ export const useInvoices = () => {
 export const InvoiceProvider = ({ children }) => {
   const [invoices, setInvoices] = useState([])
   const [loading, setLoading] = useState(true)
+  const { token } = useAuth()
 
   useEffect(() => {
-    // Load invoices from localStorage
-    const storedInvoices = localStorage.getItem('invoices')
-    if (storedInvoices) {
-      setInvoices(JSON.parse(storedInvoices))
-    } else {
-      // If no invoices in storage, initialize with sample data
-      const sampleInvoices = generateSampleInvoices()
-      setInvoices(sampleInvoices)
-      localStorage.setItem('invoices', JSON.stringify(sampleInvoices))
-    }
-    setLoading(false)
-  }, [])
+    const fetchInvoices = async () => {
+      if (!token) return
 
-  // Generate sample invoices for demo purposes
-  const generateSampleInvoices = () => {
-    return [
-      {
-        id: '1',
-        clientName: 'Apple Inc.',
-        amount: 3200.00,
-        date: format(new Date(2023, 3, 15), 'yyyy-MM-dd'),
-        status: 'paid',
-        dueDate: format(new Date(2023, 4, 15), 'yyyy-MM-dd'),
-      },
-      {
-        id: '2',
-        clientName: 'Google LLC',
-        amount: 1500.00,
-        date: format(new Date(2023, 2, 28), 'yyyy-MM-dd'),
-        status: 'pending',
-        dueDate: format(new Date(2023, 3, 28), 'yyyy-MM-dd'),
-      },
-      {
-        id: '3',
-        clientName: 'Meta Platforms',
-        amount: 850.00,
-        date: format(new Date(2023, 3, 5), 'yyyy-MM-dd'),
-        status: 'overdue',
-        dueDate: format(new Date(2023, 4, 5), 'yyyy-MM-dd'),
-      },
-      {
-        id: '4',
-        clientName: 'Microsoft Corporation',
-        amount: 4750.00,
-        date: format(new Date(2023, 2, 15), 'yyyy-MM-dd'),
-        status: 'paid',
-        dueDate: format(new Date(2023, 3, 15), 'yyyy-MM-dd'),
-      },
-      {
-        id: '5',
-        clientName: 'Amazon Web Services',
-        amount: 2340.00,
-        date: format(new Date(2023, 3, 1), 'yyyy-MM-dd'),
-        status: 'pending',
-        dueDate: format(new Date(2023, 4, 1), 'yyyy-MM-dd'),
-      },
-    ]
-  }
+      try {
+        const response = await fetch('http://localhost:3000/bills', {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch invoices')
+        }
+
+        const data = await response.json()
+        setInvoices(data)
+      } catch (error) {
+        console.error('Error fetching invoices:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchInvoices()
+  }, [token])
 
   // Add new invoice
-  const addInvoice = (invoice) => {
-    const newInvoice = {
-      ...invoice,
-      id: Math.random().toString(36).substring(2, 9), // Generate a simple ID
-      date: format(new Date(), 'yyyy-MM-dd'), // Current date
-    }
-    
-    const updatedInvoices = [...invoices, newInvoice]
-    setInvoices(updatedInvoices)
-    localStorage.setItem('invoices', JSON.stringify(updatedInvoices))
-    return newInvoice
-  }
+  const addInvoice = async (invoiceData) => {
+    try {
+      const formData = new FormData()
+      formData.append('proof', invoiceData.proof)
+      formData.append('metadata', JSON.stringify({
+        date: invoiceData.date,
+        amount: invoiceData.amount,
+        description: invoiceData.description,
+        status: invoiceData.status,
+        type: invoiceData.type
+      }))
 
-  // Delete invoice
-  const deleteInvoice = (id) => {
-    const updatedInvoices = invoices.filter(invoice => invoice.id !== id)
-    setInvoices(updatedInvoices)
-    localStorage.setItem('invoices', JSON.stringify(updatedInvoices))
+      const response = await fetch('http://localhost:3000/bills', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        body: formData
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to create invoice')
+      }
+
+      const newInvoice = await response.json()
+      setInvoices(prev => [...prev, newInvoice])
+      return newInvoice
+    } catch (error) {
+      console.error('Error creating invoice:', error)
+      throw error
+    }
   }
 
   // Update invoice
-  const updateInvoice = (id, updatedData) => {
-    const updatedInvoices = invoices.map(invoice => 
-      invoice.id === id ? { ...invoice, ...updatedData } : invoice
-    )
-    setInvoices(updatedInvoices)
-    localStorage.setItem('invoices', JSON.stringify(updatedInvoices))
+  const updateInvoice = async (id, updatedData) => {
+    try {
+      const response = await fetch(`http://localhost:3000/bills/${id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(updatedData)
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to update invoice')
+      }
+
+      const updatedInvoice = await response.json()
+      setInvoices(prev => prev.map(invoice => 
+        invoice._id === id ? updatedInvoice : invoice
+      ))
+      return updatedInvoice
+    } catch (error) {
+      console.error('Error updating invoice:', error)
+      throw error
+    }
+  }
+
+  // Delete invoice
+  const deleteInvoice = async (id) => {
+    try {
+      const response = await fetch(`http://localhost:3000/bills/${id}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error('Failed to delete invoice')
+      }
+
+      setInvoices(prev => prev.filter(invoice => invoice._id !== id))
+    } catch (error) {
+      console.error('Error deleting invoice:', error)
+      throw error
+    }
   }
 
   const value = {

@@ -1,17 +1,18 @@
-import React, { useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { FiMoreVertical } from 'react-icons/fi';
+import PropTypes from 'prop-types';
 import DropdownMenuPortal from '../dashboard/DropdownMenuPortal';
 
 function InvoiceItem({ invoice, onDelete, onView, onEdit }) {
-  const { _id, clientName, amount, date, status, createdAt } = invoice;
+  const { _id, amount, date, status, createdAt, description } = invoice;
 
   const buttonRef = useRef(null);
   const [open, setOpen] = useState(false);
 
   const getStatusClass = () => {
     switch (status) {
-      case 'Payé':
+      case 'payé':
         return 'bg-green-100 text-green-600';
       case 'en cours':
         return 'bg-red-100 text-red-600';
@@ -24,8 +25,8 @@ function InvoiceItem({ invoice, onDelete, onView, onEdit }) {
 
   const formatDate = (dateString) => {
     try {
-      return format(parseISO(dateString), 'MMM dd, yyyy');
-    } catch (e) {
+      return format(parseISO(dateString), 'dd/MM/yyyy');
+    } catch {
       return dateString;
     }
   };
@@ -34,19 +35,19 @@ function InvoiceItem({ invoice, onDelete, onView, onEdit }) {
     <div className="invoice-item flex items-center justify-between transition-all duration-200 animate-fade-in">
       <div className="flex items-center space-x-4">
         <div className="flex flex-col">
-          <h3 className="text-lg font-medium text-gray-900">{clientName || 'Invoice ID'}</h3>
+          <h3 className="text-lg font-medium text-gray-900">{description || 'Invoice'}</h3>
           <p className="text-sm text-gray-500">{_id}</p>
         </div>
       </div>
 
       <div className="flex items-center space-x-8">
         <div className="text-right hidden sm:block">
-          <p className="text-sm text-gray-500">Issued</p>
+          <p className="text-sm text-gray-500">Created</p>
           <p className="text-sm font-medium">{formatDate(createdAt)}</p>
         </div>
 
         <div className="text-right hidden md:block">
-          <p className="text-sm text-gray-500">Due</p>
+          <p className="text-sm text-gray-500">Date</p>
           <p className="text-sm font-medium">{formatDate(date)}</p>
         </div>
 
@@ -106,5 +107,21 @@ function InvoiceItem({ invoice, onDelete, onView, onEdit }) {
     </div>
   );
 }
+
+InvoiceItem.propTypes = {
+  invoice: PropTypes.shape({
+    _id: PropTypes.string.isRequired,
+    amount: PropTypes.number.isRequired,
+    date: PropTypes.string.isRequired,
+    status: PropTypes.string.isRequired,
+    createdAt: PropTypes.string.isRequired,
+    description: PropTypes.string,
+    type: PropTypes.string,
+    proof: PropTypes.string
+  }).isRequired,
+  onDelete: PropTypes.func.isRequired,
+  onView: PropTypes.func.isRequired,
+  onEdit: PropTypes.func.isRequired
+};
 
 export default InvoiceItem;

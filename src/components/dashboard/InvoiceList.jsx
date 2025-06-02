@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { FiSearch, FiFilter } from 'react-icons/fi';
+import PropTypes from 'prop-types';
 import InvoiceItem from './InvoiceItem';
 import Button from '../common/Button';
 
@@ -18,13 +19,13 @@ function InvoiceList({ invoices = [], onCreateNew, onView, onEdit, onDelete }) {
       // Filter by status
       if (filter !== 'all' && invoice.status !== filter) return false;
 
-      // Filter by search (client name or invoice ID)
+      // Filter by search (description or invoice ID)
       const query = search.toLowerCase();
-      const nameMatch = invoice.clientName?.toLowerCase().includes(query);
+      const descriptionMatch = invoice.description?.toLowerCase().includes(query);
       const idMatch = invoice._id?.toLowerCase().includes(query);
-      return !search || nameMatch || idMatch;
+      return !search || descriptionMatch || idMatch;
     })
-    .sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by due date (newest first)
+    .sort((a, b) => new Date(b.date) - new Date(a.date)); // Sort by date (newest first)
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -34,7 +35,7 @@ function InvoiceList({ invoices = [], onCreateNew, onView, onEdit, onDelete }) {
             <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
-              placeholder="Recherche par client ou ID..."
+              placeholder="Recherche par description ou ID..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
@@ -94,5 +95,24 @@ function InvoiceList({ invoices = [], onCreateNew, onView, onEdit, onDelete }) {
     </div>
   );
 }
+
+InvoiceList.propTypes = {
+  invoices: PropTypes.arrayOf(
+    PropTypes.shape({
+      _id: PropTypes.string.isRequired,
+      amount: PropTypes.number.isRequired,
+      date: PropTypes.string.isRequired,
+      status: PropTypes.string.isRequired,
+      createdAt: PropTypes.string.isRequired,
+      description: PropTypes.string,
+      type: PropTypes.string,
+      proof: PropTypes.string
+    })
+  ),
+  onCreateNew: PropTypes.func.isRequired,
+  onView: PropTypes.func.isRequired,
+  onEdit: PropTypes.func.isRequired,
+  onDelete: PropTypes.func.isRequired
+};
 
 export default InvoiceList;

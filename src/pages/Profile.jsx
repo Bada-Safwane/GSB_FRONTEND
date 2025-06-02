@@ -118,7 +118,7 @@ function Profile() {
             <div className="absolute -bottom-12 left-8">
               <div className="w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-white">
                 <img
-                  src={user?.profilePic || 'https://i.pravatar.cc/150'}
+                  src={user?.profilePic || '/src/assets/11435235.png'}
                   alt={user?.name}
                   className="w-full h-full object-cover"
                 />

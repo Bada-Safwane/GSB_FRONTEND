@@ -3,53 +3,58 @@ import { format } from 'date-fns'
 import Modal from '../common/Modal'
 import Input from '../common/Input'
 import Button from '../common/Button'
-import { useInvoices } from '../../contexts/InvoiceContext'
+import { useAuth } from '../../contexts/AuthContext'
 
 function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
-  const { addInvoice, updateInvoice } = useInvoices()
+  const { token } = useAuth()
   const [formData, setFormData] = useState({
-    clientName: '',
-    clientEmail: '',
+    date: format(new Date(), 'dd/MM/yyyy'),
     amount: '',
-    dueDate: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-    status: 'pending',
     description: '',
-    proof: '',
+    status: 'en cours',
+    type: 'facture',
+    proof: null
   })
 
   const [errors, setErrors] = useState({})
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     if (editInvoice) {
       setFormData({
-        clientName: editInvoice.clientName || '',
-        clientEmail: editInvoice.clientEmail || '',
+        date: editInvoice.date || format(new Date(), 'dd/MM/yyyy'),
         amount: editInvoice.amount?.toString() || '',
-        dueDate: editInvoice.dueDate || format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-        status: editInvoice.status || 'pending',
         description: editInvoice.description || '',
-        proof: editInvoice.proof || '',
+        status: editInvoice.status || 'en cours',
+        type: editInvoice.type || 'facture',
+        proof: null
       })
     } else {
       setFormData({
-        clientName: '',
-        clientEmail: '',
+        date: format(new Date(), 'dd/MM/yyyy'),
         amount: '',
-        dueDate: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
-        status: 'pending',
         description: '',
-        proof: '',
+        status: 'en cours',
+        type: 'facture',
+        proof: null
       })
     }
     setErrors({})
   }, [editInvoice, isOpen])
 
   const handleChange = (e) => {
-    const { id, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [id]: value,
-    }))
+    const { id, value, files } = e.target
+    if (id === 'proof' && files) {
+      setFormData(prev => ({
+        ...prev,
+        proof: files[0]
+      }))
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [id]: value,
+      }))
+    }
 
     if (errors[id]) {
       setErrors(prev => ({
@@ -62,51 +67,98 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
   const validateForm = () => {
     const newErrors = {}
 
-    if (!formData.clientName.trim()) {
-      newErrors.clientName = 'Client name is required'
-    }
-
     if (!formData.amount.trim()) {
       newErrors.amount = 'Amount is required'
     } else if (isNaN(parseFloat(formData.amount)) || parseFloat(formData.amount) <= 0) {
       newErrors.amount = 'Please enter a valid amount'
     }
 
-    if (!formData.dueDate) {
-      newErrors.dueDate = 'Due date is required'
+    if (!formData.description.trim()) {
+      newErrors.description = 'Description is required'
+    }
+
+    if (!editInvoice && !formData.proof) {
+      newErrors.proof = 'Proof file is required'
     }
 
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
 
     if (!validateForm()) {
       return
     }
 
-    const invoiceData = {
-      ...formData,
-      amount: parseFloat(formData.amount),
-    }
+    setIsSubmitting(true)
 
-    if (editInvoice) {
-      updateInvoice(editInvoice.id, invoiceData)
-    } else {
-      addInvoice(invoiceData)
-    }
+    try {
+      if (editInvoice) {
+        // Update existing invoice
+        const response = await fetch(`http://localhost:3000/bills/${editInvoice._id}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+          },
+          body: JSON.stringify({
+            ...formData,
+            amount: parseFloat(formData.amount),
+            _id: editInvoice._id,
+            user: editInvoice.user,
+            createdAt: editInvoice.createdAt,
+            __v: editInvoice.__v
+          })
+        })
 
-    onClose()
+        if (!response.ok) {
+          throw new Error('Failed to update invoice')
+        }
+      } else {
+        // Create new invoice
+        const formDataToSend = new FormData()
+        formDataToSend.append('proof', formData.proof)
+        formDataToSend.append('metadata', JSON.stringify({
+          date: formData.date,
+          amount: parseFloat(formData.amount),
+          description: formData.description,
+          status: formData.status,
+          type: formData.type
+        }))
+
+        const response = await fetch('http://localhost:3000/bills', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          body: formDataToSend
+        })
+
+        if (!response.ok) {
+          throw new Error('Failed to create invoice')
+        }
+      }
+
+      onClose()
+    } catch (error) {
+      console.error('Error submitting invoice:', error)
+      setErrors(prev => ({
+        ...prev,
+        submit: 'Failed to submit invoice. Please try again.'
+      }))
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const footer = (
     <>
-      <Button variant="secondary" onClick={onClose}>
+      <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
         Cancel
       </Button>
-      <Button onClick={handleSubmit}>
+      <Button onClick={handleSubmit} disabled={isSubmitting}>
         {editInvoice ? 'Update Invoice' : 'Create Invoice'}
       </Button>
     </>
@@ -123,27 +175,16 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
-            label="Client Name"
-            id="clientName"
-            placeholder="Enter client name"
-            value={formData.clientName}
+            label="Date"
+            type="text"
+            id="date"
+            placeholder="DD/MM/YYYY"
+            value={formData.date}
             onChange={handleChange}
-            error={errors.clientName}
+            error={errors.date}
             required
           />
 
-          <Input
-            label="Client Email"
-            type="email"
-            id="clientEmail"
-            placeholder="Enter client email"
-            value={formData.clientEmail}
-            onChange={handleChange}
-            error={errors.clientEmail}
-          />
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Amount"
             type="number"
@@ -154,16 +195,6 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
             min="0.01"
             step="0.01"
             error={errors.amount}
-            required
-          />
-
-          <Input
-            label="Due Date"
-            type="date"
-            id="dueDate"
-            value={formData.dueDate}
-            onChange={handleChange}
-            error={errors.dueDate}
             required
           />
         </div>
@@ -178,29 +209,47 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
           >
-            <option value="pending">Pending</option>
-            <option value="paid">Paid</option>
-            <option value="overdue">Overdue</option>
+            <option value="en cours">En cours</option>
+            <option value="en attente">En attente</option>
+            <option value="payé">Payé</option>
           </select>
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Proof of Bill (Image URL)</label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Type
+          </label>
+          <select
+            id="type"
+            value={formData.type}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+          >
+            <option value="facture">Facture</option>
+            <option value="note">Note de frais</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Proof of Bill
+          </label>
           <input
             id="proof"
-            type="url"
-            placeholder="Enter image URL"
-            value={formData.proof}
+            type="file"
+            accept="image/*"
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
           />
-
-          {formData.proof && (
+          {errors.proof && (
+            <p className="mt-1 text-sm text-red-600">{errors.proof}</p>
+          )}
+          {editInvoice?.proof && (
             <div className="mt-2">
-              <p className="text-sm text-gray-500 mb-1">Preview:</p>
+              <p className="text-sm text-gray-500 mb-1">Current proof:</p>
               <img
-                src={formData.proof}
-                alt="Proof of bill"
+                src={editInvoice.proof}
+                alt="Current proof"
                 className="rounded-md max-h-48 object-contain border border-gray-200"
                 onError={(e) => (e.target.style.display = 'none')}
               />
@@ -214,13 +263,21 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
           </label>
           <textarea
             id="description"
-            placeholder="Enter invoice description or notes"
+            placeholder="Enter invoice description"
             value={formData.description}
             onChange={handleChange}
             rows={3}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+            required
           />
+          {errors.description && (
+            <p className="mt-1 text-sm text-red-600">{errors.description}</p>
+          )}
         </div>
+
+        {errors.submit && (
+          <p className="text-sm text-red-600">{errors.submit}</p>
+        )}
       </form>
     </Modal>
   )
