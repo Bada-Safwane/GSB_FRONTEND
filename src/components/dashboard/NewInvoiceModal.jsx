@@ -11,13 +11,14 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
     clientName: '',
     clientEmail: '',
     amount: '',
-    dueDate: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'), // Due in 30 days
+    dueDate: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
     status: 'pending',
     description: '',
+    proof: '',
   })
+
   const [errors, setErrors] = useState({})
-  
-  // If editing an existing invoice, populate the form
+
   useEffect(() => {
     if (editInvoice) {
       setFormData({
@@ -27,9 +28,9 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
         dueDate: editInvoice.dueDate || format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
         status: editInvoice.status || 'pending',
         description: editInvoice.description || '',
+        proof: editInvoice.proof || '',
       })
     } else {
-      // Reset form when creating a new invoice
       setFormData({
         clientName: '',
         clientEmail: '',
@@ -37,19 +38,19 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
         dueDate: format(new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), 'yyyy-MM-dd'),
         status: 'pending',
         description: '',
+        proof: '',
       })
     }
     setErrors({})
   }, [editInvoice, isOpen])
-  
+
   const handleChange = (e) => {
     const { id, value } = e.target
     setFormData(prev => ({
       ...prev,
       [id]: value,
     }))
-    
-    // Clear error for this field
+
     if (errors[id]) {
       setErrors(prev => ({
         ...prev,
@@ -57,49 +58,49 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
       }))
     }
   }
-  
+
   const validateForm = () => {
     const newErrors = {}
-    
+
     if (!formData.clientName.trim()) {
       newErrors.clientName = 'Client name is required'
     }
-    
+
     if (!formData.amount.trim()) {
       newErrors.amount = 'Amount is required'
     } else if (isNaN(parseFloat(formData.amount)) || parseFloat(formData.amount) <= 0) {
       newErrors.amount = 'Please enter a valid amount'
     }
-    
+
     if (!formData.dueDate) {
       newErrors.dueDate = 'Due date is required'
     }
-    
+
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
   }
-  
+
   const handleSubmit = (e) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
-    
+
     const invoiceData = {
       ...formData,
       amount: parseFloat(formData.amount),
     }
-    
+
     if (editInvoice) {
       updateInvoice(editInvoice.id, invoiceData)
     } else {
       addInvoice(invoiceData)
     }
-    
+
     onClose()
   }
-  
+
   const footer = (
     <>
       <Button variant="secondary" onClick={onClose}>
@@ -130,7 +131,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
             error={errors.clientName}
             required
           />
-          
+
           <Input
             label="Client Email"
             type="email"
@@ -141,7 +142,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
             error={errors.clientEmail}
           />
         </div>
-        
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Amount"
@@ -155,7 +156,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
             error={errors.amount}
             required
           />
-          
+
           <Input
             label="Due Date"
             type="date"
@@ -166,7 +167,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
             required
           />
         </div>
-        
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Status
@@ -182,7 +183,31 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
             <option value="overdue">Overdue</option>
           </select>
         </div>
-        
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Proof of Bill (Image URL)</label>
+          <input
+            id="proof"
+            type="url"
+            placeholder="Enter image URL"
+            value={formData.proof}
+            onChange={handleChange}
+            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+          />
+
+          {formData.proof && (
+            <div className="mt-2">
+              <p className="text-sm text-gray-500 mb-1">Preview:</p>
+              <img
+                src={formData.proof}
+                alt="Proof of bill"
+                className="rounded-md max-h-48 object-contain border border-gray-200"
+                onError={(e) => (e.target.style.display = 'none')}
+              />
+            </div>
+          )}
+        </div>
+
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Description

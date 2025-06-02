@@ -10,59 +10,77 @@ export const useAuth = () => {
 
 // Provider component
 export const AuthProvider = ({ children }) => {
+  const [token, setToken] = useState(() => localStorage.getItem('authToken'))
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    // Check if user is logged in from localStorage
-    const storedUser = localStorage.getItem('user')
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
-    }
     setLoading(false)
   }, [])
 
-  // Login function
-  const login = (email, password) => {
-    // In a real app, this would make an API call to authenticate
-    // For demo purposes, we'll simulate a successful login
-    const newUser = {
-      id: '1',
-      email,
-      name: email.split('@')[0],
-      profilePic: 'https://i.pravatar.cc/150?img=12',
+  // Real login function calling backend
+  const login = async (email, password) => {
+    try {
+      console.log('AuthContext: Making login request to backend')
+      
+      const response = await fetch('http://localhost:3000/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+
+      console.log('AuthContext: Response status:', response.status)
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        console.error('AuthContext: Login failed with error:', errorData)
+        throw new Error(errorData.message || 'Login failed')
+      }
+
+      const data = await response.json()
+      console.log('AuthContext: Login response data:', data)
+
+      if (!data.token) {
+        console.error('AuthContext: No token in response')
+        throw new Error('No token received')
+      }
+
+      console.log('AuthContext: Setting token and saving to localStorage')
+      setToken(data.token)
+      localStorage.setItem('authToken', data.token)
+
+      // If user data is included, set it
+      if (data.user) {
+        setUser(data.user)
+      } else {
+        // If no user data in response, create a basic user object
+        // You might want to make a separate API call to get user details
+        // or decode the JWT token to get user info
+        setUser({ email: email, authenticated: true })
+      }
+
+      console.log('AuthContext: Login successful, returning token')
+      return data.token
+    } catch (error) {
+      console.error('AuthContext: Login error:', error)
+      throw error
     }
-    setUser(newUser)
-    localStorage.setItem('user', JSON.stringify(newUser))
-    return Promise.resolve(newUser)
   }
 
-  // Signup function
-  const signup = (email, password, name) => {
-    // In a real app, this would make an API call to register
-    // For demo purposes, we'll simulate a successful signup
-    const newUser = {
-      id: '1',
-      email,
-      name: name || email.split('@')[0],
-      profilePic: 'https://i.pravatar.cc/150?img=12',
-    }
-    setUser(newUser)
-    localStorage.setItem('user', JSON.stringify(newUser))
-    return Promise.resolve(newUser)
-  }
-
-  // Logout function
   const logout = () => {
+    console.log('AuthContext: Logging out')
+    setToken(null)
     setUser(null)
-    localStorage.removeItem('user')
+    localStorage.removeItem('authToken')
     return Promise.resolve()
   }
 
   const value = {
+    token,
     user,
+    setToken,
+    setUser,
     login,
-    signup,
     logout,
     loading,
   }
