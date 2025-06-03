@@ -5,7 +5,7 @@ import PropTypes from 'prop-types';
 import DropdownMenuPortal from '../dashboard/DropdownMenuPortal';
 
 function InvoiceItem({ invoice, onDelete, onView, onEdit }) {
-  const { _id, amount, date, status, createdAt, description } = invoice;
+  const { _id, amount, date, status, createdAt, description, type } = invoice;
 
   const buttonRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -23,19 +23,24 @@ function InvoiceItem({ invoice, onDelete, onView, onEdit }) {
     }
   };
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateInput) => {
     try {
-      return format(parseISO(dateString), 'dd/MM/yyyy');
+      const date =
+        typeof dateInput === 'number' || /^\d{13}$/.test(dateInput)
+          ? new Date(Number(dateInput))
+          : parseISO(dateInput)
+
+      return format(date, 'dd/MM/yyyy')
     } catch {
-      return dateString;
+      return dateInput
     }
-  };
+  }
 
   return (
     <div className="invoice-item flex items-center justify-between transition-all duration-200 animate-fade-in">
       <div className="flex items-center space-x-4">
         <div className="flex flex-col">
-          <h3 className="text-lg font-medium text-gray-900">{description || 'Invoice'}</h3>
+          <h3 className="text-lg font-medium text-gray-900">{type || 'Invoice'}</h3>
           <p className="text-sm text-gray-500">{_id}</p>
         </div>
       </div>

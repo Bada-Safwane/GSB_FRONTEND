@@ -78,13 +78,18 @@ function Dashboard() {
     }
   };
 
-  const formatDate = (dateString) => {
+  const formatDate = (dateInput) => {
     try {
-      return format(parseISO(dateString), 'MMMM dd, yyyy');
+      const date =
+        typeof dateInput === 'number' || /^\d{13}$/.test(dateInput)
+          ? new Date(Number(dateInput))
+          : parseISO(dateInput)
+
+      return format(date, 'dd/MM/yyyy')
     } catch {
-      return dateString;
+      return dateInput
     }
-  };
+  }
 
   const getStatusClass = (status) => {
     switch (status) {

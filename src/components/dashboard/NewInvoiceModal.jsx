@@ -96,22 +96,45 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
 
     try {
       if (editInvoice) {
-        // Update existing invoice
-        const response = await fetch(`http://localhost:3000/bills/${editInvoice._id}`, {
-          method: 'PUT',
+      let proofUrl = editInvoice.proof
+
+      if (formData.proof instanceof File) {
+        const uploadForm = new FormData()
+        uploadForm.append('proof', formData.proof)
+
+        const uploadResponse = await fetch('http://localhost:3000/upload', {
+          method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${token}`
+            Authorization: `Bearer ${token}`
           },
-          body: JSON.stringify({
-            ...formData,
-            amount: parseFloat(formData.amount),
-            _id: editInvoice._id,
-            user: editInvoice.user,
-            createdAt: editInvoice.createdAt,
-            __v: editInvoice.__v
-          })
+          body: uploadForm
         })
+
+        if (!uploadResponse.ok) throw new Error('File upload failed')
+
+        const uploadResult = await uploadResponse.json()
+        proofUrl = uploadResult.url // or wherever your API returns the file URL
+      }
+
+      // Now do the actual PUT:
+      const response = await fetch(`http://localhost:3000/bills/${editInvoice._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          date: formData.date,
+          amount: parseFloat(formData.amount),
+          proof: proofUrl,
+          description: formData.description,
+          user: editInvoice.user,
+          status: formData.status,
+          type: formData.type,
+          createdAt: editInvoice.createdAt
+        })
+      })
+
 
         if (!response.ok) {
           throw new Error('Failed to update invoice')
@@ -131,7 +154,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
         const response = await fetch('http://localhost:3000/bills', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${token}`
+            Authorization: `Bearer ${token}`
           },
           body: formDataToSend
         })
@@ -219,15 +242,13 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Type
           </label>
-          <select
+            <Input
             id="type"
             value={formData.type}
             onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
-          >
-            <option value="facture">Facture</option>
-            <option value="note">Note de frais</option>
-          </select>
+            placeholder="Type de note"
+            />
+
         </div>
 
         <div>
