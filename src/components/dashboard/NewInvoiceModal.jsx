@@ -269,7 +269,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
           />
         </div>
 
-        <div>
+        {/* <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Preuve de facture</label>
           <input
             id="proof"
@@ -288,7 +288,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
                 className="rounded-md max-h-48 object-contain border border-gray-200"
                 onError={(e) => (e.target.style.display = 'none')}
               />
-            </div>
+            </div> */}
           )}
         </div>
 
