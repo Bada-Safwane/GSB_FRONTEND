@@ -23,7 +23,7 @@ export const InvoiceProvider = ({ children }) => {
       }
 
       try {
-        const response = await fetch('http://localhost:3000/bills', {
+        const response = await fetch('https://gsb-backend-nti4.onrender.com/bills', {
           headers: {
             'Authorization': `Bearer ${token}`
           }
@@ -61,7 +61,7 @@ export const InvoiceProvider = ({ children }) => {
         type: invoiceData.type
       }))
 
-      const response = await fetch('http://localhost:3000/bills', {
+      const response = await fetch('https://gsb-backend-nti4.onrender.com/bills', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -85,7 +85,7 @@ export const InvoiceProvider = ({ children }) => {
   // Update invoice
   const updateInvoice = async (id, updatedData) => {
     try {
-      const response = await fetch(`http://localhost:3000/bills/${id}`, {
+      const response = await fetch(`https://gsb-backend-nti4.onrender.com/bills/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -112,7 +112,7 @@ export const InvoiceProvider = ({ children }) => {
   // Delete invoice
   const deleteInvoice = async (id) => {
     try {
-      const response = await fetch(`http://localhost:3000/bills/${id}`, {
+      const response = await fetch(`https://gsb-backend-nti4.onrender.com/bills/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

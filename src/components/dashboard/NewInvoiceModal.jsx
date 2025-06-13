@@ -102,7 +102,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
           const uploadForm = new FormData()
           uploadForm.append('proof', formData.proof)
 
-          const uploadResponse = await fetch('http://localhost:3000/upload', {
+          const uploadResponse = await fetch('https://gsb-backend-nti4.onrender.com/upload', {
             method: 'POST',
             headers: {
               Authorization: `Bearer ${token}`
@@ -116,7 +116,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
           proofUrl = uploadResult.url
         }
 
-        const response = await fetch(`http://localhost:3000/bills/${editInvoice._id}`, {
+        const response = await fetch(`https://gsb-backend-nti4.onrender.com/bills/${editInvoice._id}`, {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
@@ -151,7 +151,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
           type: formData.type
         }))
 
-        const response = await fetch('http://localhost:3000/bills', {
+        const response = await fetch('https://gsb-backend-nti4.onrender.com/bills', {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${token}`

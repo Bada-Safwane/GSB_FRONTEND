@@ -23,7 +23,7 @@ function Profile() {
     const fetchUser = async () => {
       if (!authUser?.email) return
       try {
-        const res = await fetch(`http://localhost:3000/users/${authUser.email}`)
+        const res = await fetch(`https://gsb-backend-nti4.onrender.com/users/${authUser.email}`)
         const data = await res.json()
 
         const completeUser = {
@@ -63,7 +63,7 @@ function Profile() {
     if (!authUser?.email) return
 
     try {
-      const res = await fetch(`http://localhost:3000/users/${authUser.email}`, {
+      const res = await fetch(`https://gsb-backend-nti4.onrender.com/users/${authUser.email}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

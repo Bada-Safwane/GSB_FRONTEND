@@ -37,7 +37,7 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('AuthContext: Making login request to backend');
 
-      const response = await fetch('http://localhost:3000/auth/login', {
+      const response = await fetch('https://gsb-backend-nti4.onrender.com/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),

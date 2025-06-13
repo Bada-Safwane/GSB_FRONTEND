@@ -29,7 +29,7 @@ function SignupForm({ onSuccess }) {
       setError('')
       setLoading(true)
 
-      const response = await fetch('http://localhost:3000/users', {
+      const response = await fetch('https://gsb-backend-nti4.onrender.com/users', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'

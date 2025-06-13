@@ -20,7 +20,7 @@ function Dashboard() {
     if (!token) return;
 
     try {
-      const response = await fetch('http://localhost:3000/bills', {
+      const response = await fetch('https://gsb-backend-nti4.onrender.com/bills', {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -62,7 +62,7 @@ function Dashboard() {
     if (!token) return;
 
     try {
-      const response = await fetch(`http://localhost:3000/bills/${id}`, {
+      const response = await fetch(`https://gsb-backend-nti4.onrender.com/bills/${id}`, {
         method: 'DELETE',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -125,35 +125,40 @@ function Dashboard() {
           <p className="text-gray-600">Gérez vos notes de frais et suivez vos dépenses</p>
         </div>
 
-        <div className={`grid grid-cols-1 sm:grid-cols-${user?.role === 'admin' ? '4' : '3'} gap-4 mb-10`}>
-          <div className="bg-white shadow rounded-lg p-4">
-            <p className="text-sm text-gray-500">En cours</p>
-            <p className="text-2xl font-bold text-error-500">
-              {filteredInvoices.filter(inv => inv.status === 'en cours').length}
-            </p>
-          </div>
-          <div className="bg-white shadow rounded-lg p-4">
-            <p className="text-sm text-gray-500">En attente</p>
-            <p className="text-2xl font-bold text-warning-500">
-              {filteredInvoices.filter(inv => inv.status === 'en attente').length}
-            </p>
-          </div>
-          <div className="bg-white shadow rounded-lg p-4">
-            <p className="text-sm text-gray-500">Payé</p>
-            <p className="text-2xl font-bold text-success-500">
-              {filteredInvoices.filter(inv => inv.status === 'payé').length}
-            </p>
-          </div>
+  <div
+  className={`grid grid-cols-1 gap-4 mb-10 ${
+    user?.role === 'admin' ? 'sm:grid-cols-4' : 'sm:grid-cols-3'
+  }`}
+>
+  <div className="bg-white shadow rounded-lg p-4">
+    <p className="text-sm text-gray-500">En cours</p>
+    <p className="text-2xl font-bold text-error-500">
+      {filteredInvoices.filter(inv => inv.status === 'en cours').length}
+    </p>
+  </div>
+  <div className="bg-white shadow rounded-lg p-4">
+    <p className="text-sm text-gray-500">En attente</p>
+    <p className="text-2xl font-bold text-warning-500">
+      {filteredInvoices.filter(inv => inv.status === 'en attente').length}
+    </p>
+  </div>
+  <div className="bg-white shadow rounded-lg p-4">
+    <p className="text-sm text-gray-500">Payé</p>
+    <p className="text-2xl font-bold text-success-500">
+      {filteredInvoices.filter(inv => inv.status === 'payé').length}
+    </p>
+  </div>
 
-          {user?.role === 'admin' && (
-            <div className="bg-white shadow rounded-lg p-4">
-              <p className="text-sm text-gray-500">Montant total</p>
-              <p className="text-2xl font-bold text-primary-500">
-                {totalAmount.toFixed(2)} €
-              </p>
-            </div>
-          )}
-        </div>
+  {user?.role === 'admin' && (
+    <div className="bg-white shadow rounded-lg p-4">
+      <p className="text-sm text-gray-500">Montant total</p>
+      <p className="text-2xl font-bold text-primary-500">
+        {totalAmount.toFixed(2)} €
+      </p>
+    </div>
+  )}
+</div>
+
 
         <InvoiceList
           invoices={invoices}
