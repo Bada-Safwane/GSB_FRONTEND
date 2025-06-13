@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { FiMail, FiLock, FiUser } from 'react-icons/fi'
 import Input from '../common/Input'
 import Button from '../common/Button'
-import { useAuth } from '../../contexts/AuthContext'
 
 function SignupForm({ onSuccess }) {
   const [name, setName] = useState('')
@@ -12,30 +11,46 @@ function SignupForm({ onSuccess }) {
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  
-  const { signup } = useAuth()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    
+
     if (!name || !email || !password || !confirmPassword) {
       setError('Veuillez remplir tous les champs')
       return
     }
-    
+
     if (password !== confirmPassword) {
       setError('Les mots de passe ne correspondent pas')
       return
     }
-    
+
     try {
       setError('')
       setLoading(true)
-      await signup(email, password, name)
+
+      const response = await fetch('http://localhost:3000/users', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          password,
+          role: 'visiteur' // rôle fixé
+        })
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.message || 'Échec de la création du compte')
+      }
+
       if (onSuccess) onSuccess()
     } catch (err) {
-      setError('Échec de la création du compte')
-      console.error(err)
+      setError(err.message)
+      console.error('Erreur lors de l’inscription :', err)
     } finally {
       setLoading(false)
     }
@@ -48,7 +63,7 @@ function SignupForm({ onSuccess }) {
           {error}
         </div>
       )}
-      
+
       <div className="relative">
         <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <Input
@@ -61,7 +76,7 @@ function SignupForm({ onSuccess }) {
           required
         />
       </div>
-      
+
       <div className="relative">
         <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <Input
@@ -74,7 +89,7 @@ function SignupForm({ onSuccess }) {
           required
         />
       </div>
-      
+
       <div className="relative">
         <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <Input
@@ -87,7 +102,7 @@ function SignupForm({ onSuccess }) {
           required
         />
       </div>
-      
+
       <div className="relative">
         <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
         <Input
@@ -100,7 +115,7 @@ function SignupForm({ onSuccess }) {
           required
         />
       </div>
-      
+
       <Button
         type="submit"
         fullWidth
@@ -108,7 +123,7 @@ function SignupForm({ onSuccess }) {
       >
         {loading ? 'Création du compte...' : 'Créer un compte'}
       </Button>
-      
+
       <p className="text-center text-gray-600 text-sm">
         Vous avez déjà un compte ?{' '}
         <Link to="/login" className="text-primary-500 hover:text-primary-600 font-medium">

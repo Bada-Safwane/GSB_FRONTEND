@@ -14,7 +14,7 @@ function ProfileAvatar({ src, alt, className = '', size = 'md', ...props }) {
       {...props}
     >
       <img 
-        src={src || '/src/assets/11435235.png'} 
+        src={src || '/src/assets/avatar.jpg'} 
         alt={alt || 'Profile'} 
         className="w-full h-full object-cover"
       />

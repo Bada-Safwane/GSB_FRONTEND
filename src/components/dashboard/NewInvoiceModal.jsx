@@ -5,8 +5,8 @@ import Input from '../common/Input'
 import Button from '../common/Button'
 import { useAuth } from '../../contexts/AuthContext'
 
-function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
-  const { token } = useAuth()
+function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }) {
+  const { token, user } = useAuth()
   const [formData, setFormData] = useState({
     date: format(new Date(), 'dd/MM/yyyy'),
     amount: '',
@@ -96,51 +96,51 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
 
     try {
       if (editInvoice) {
-      let proofUrl = editInvoice.proof
+        let proofUrl = editInvoice.proof
 
-      if (formData.proof instanceof File) {
-        const uploadForm = new FormData()
-        uploadForm.append('proof', formData.proof)
+        if (formData.proof instanceof File) {
+          const uploadForm = new FormData()
+          uploadForm.append('proof', formData.proof)
 
-        const uploadResponse = await fetch('http://localhost:3000/upload', {
-          method: 'POST',
+          const uploadResponse = await fetch('http://localhost:3000/upload', {
+            method: 'POST',
+            headers: {
+              Authorization: `Bearer ${token}`
+            },
+            body: uploadForm
+          })
+
+          if (!uploadResponse.ok) throw new Error('File upload failed')
+
+          const uploadResult = await uploadResponse.json()
+          proofUrl = uploadResult.url
+        }
+
+        const response = await fetch(`http://localhost:3000/bills/${editInvoice._id}`, {
+          method: 'PUT',
           headers: {
+            'Content-Type': 'application/json',
             Authorization: `Bearer ${token}`
           },
-          body: uploadForm
+          body: JSON.stringify({
+            date: formData.date,
+            amount: parseFloat(formData.amount),
+            proof: proofUrl,
+            description: formData.description,
+            user: editInvoice.user,
+            status: formData.status,
+            type: formData.type,
+            createdAt: editInvoice.createdAt
+          })
         })
-
-        if (!uploadResponse.ok) throw new Error('File upload failed')
-
-        const uploadResult = await uploadResponse.json()
-        proofUrl = uploadResult.url // or wherever your API returns the file URL
-      }
-
-      // Now do the actual PUT:
-      const response = await fetch(`http://localhost:3000/bills/${editInvoice._id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          date: formData.date,
-          amount: parseFloat(formData.amount),
-          proof: proofUrl,
-          description: formData.description,
-          user: editInvoice.user,
-          status: formData.status,
-          type: formData.type,
-          createdAt: editInvoice.createdAt
-        })
-      })
-
 
         if (!response.ok) {
           throw new Error('Failed to update invoice')
         }
+
+        if (onInvoiceSaved) onInvoiceSaved()
+        onClose()
       } else {
-        // Create new invoice
         const formDataToSend = new FormData()
         formDataToSend.append('proof', formData.proof)
         formDataToSend.append('metadata', JSON.stringify({
@@ -162,9 +162,10 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
         if (!response.ok) {
           throw new Error('Failed to create invoice')
         }
-      }
 
-      onClose()
+        if (onInvoiceSaved) onInvoiceSaved()
+        onClose()
+      }
     } catch (error) {
       console.error('Error submitting invoice:', error)
       setErrors(prev => ({
@@ -179,7 +180,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
   const footer = (
     <>
       <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
-        Cancel
+        Annuler
       </Button>
       <Button onClick={handleSubmit} disabled={isSubmitting}>
         {editInvoice ? 'Update Invoice' : 'Create Invoice'}
@@ -199,11 +200,29 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Date"
-            type="text"
+            type="date"
             id="date"
-            placeholder="DD/MM/YYYY"
-            value={formData.date}
-            onChange={handleChange}
+            value={(() => {
+              const [day, month, year] = formData.date.split('/');
+              return `${year}-${month}-${day}`;
+            })()}
+            onChange={(e) => {
+              const newDate = e.target.value;
+              const [year, month, day] = newDate.split('-');
+              const formattedDate = `${day}/${month}/${year}`;
+
+              setFormData(prev => ({
+                ...prev,
+                date: formattedDate
+              }));
+
+              if (errors.date) {
+                setErrors(prev => ({
+                  ...prev,
+                  date: ''
+                }));
+              }
+            }}
             error={errors.date}
             required
           />
@@ -222,39 +241,36 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Status
-          </label>
-          <select
-            id="status"
-            value={formData.status}
-            onChange={handleChange}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
-          >
-            <option value="en cours">En cours</option>
-            <option value="en attente">En attente</option>
-            <option value="payé">Payé</option>
-          </select>
-        </div>
+        {user?.role === 'admin' ? (
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select
+              id="status"
+              value={formData.status}
+              onChange={handleChange}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+            >
+              <option value="en cours">En cours</option>
+              <option value="en attente">En attente</option>
+              <option value="payé">Payé</option>
+            </select>
+          </div>
+        ) : (
+          <input type="hidden" id="status" value={formData.status} readOnly />
+        )}
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Type
-          </label>
-            <Input
+          <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
+          <Input
             id="type"
             value={formData.type}
             onChange={handleChange}
             placeholder="Type de note"
-            />
-
+          />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Proof of Bill
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Preuve de facture</label>
           <input
             id="proof"
             type="file"
@@ -262,15 +278,13 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
             onChange={handleChange}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
           />
-          {errors.proof && (
-            <p className="mt-1 text-sm text-red-600">{errors.proof}</p>
-          )}
+          {errors.proof && <p className="mt-1 text-sm text-red-600">{errors.proof}</p>}
           {editInvoice?.proof && (
             <div className="mt-2">
-              <p className="text-sm text-gray-500 mb-1">Current proof:</p>
+              <p className="text-sm text-gray-500 mb-1">Preuve actuelle:</p>
               <img
                 src={editInvoice.proof}
-                alt="Current proof"
+                alt="Preuve actuelle"
                 className="rounded-md max-h-48 object-contain border border-gray-200"
                 onError={(e) => (e.target.style.display = 'none')}
               />
@@ -279,12 +293,10 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null }) {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Description
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
           <textarea
             id="description"
-            placeholder="Enter invoice description"
+            placeholder="Entrer description"
             value={formData.description}
             onChange={handleChange}
             rows={3}

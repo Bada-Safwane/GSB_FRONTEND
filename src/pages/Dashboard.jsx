@@ -8,39 +8,40 @@ import { useAuth } from '../contexts/AuthContext';
 import { format, parseISO } from 'date-fns';
 
 function Dashboard() {
-  const { user, token } = useAuth(); // Get both user and token from context
+  const { user, token } = useAuth();
   const [invoices, setInvoices] = useState([]);
+  const [filteredInvoices, setFilteredInvoices] = useState([]);
   const [isNewInvoiceModalOpen, setIsNewInvoiceModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [editInvoice, setEditInvoice] = useState(null);
 
-  useEffect(() => {
-    const fetchInvoices = async () => {
-      // Only fetch if we have a token
-      if (!token) return;
-      
-      try {
-        const response = await fetch('http://localhost:3000/bills', {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch invoices');
-        }
-        
-        const data = await response.json();
-        setInvoices(data);
-      } catch (error) {
-        console.error('Failed to fetch invoices:', error);
-      }
-    };
+  const fetchInvoices = async () => {
+    if (!token) return;
 
+    try {
+      const response = await fetch('http://localhost:3000/bills', {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch invoices');
+      }
+
+      const data = await response.json();
+      setInvoices(data);
+      setFilteredInvoices(data); // Initialiser avec toutes les factures
+    } catch (error) {
+      console.error('Failed to fetch invoices:', error);
+    }
+  };
+
+  useEffect(() => {
     fetchInvoices();
-  }, [token]); // Depend on token changes
+  }, [token]);
 
   const handleCreateNew = () => {
     setEditInvoice(null);
@@ -59,7 +60,7 @@ function Dashboard() {
 
   const handleDelete = async (id) => {
     if (!token) return;
-    
+
     try {
       const response = await fetch(`http://localhost:3000/bills/${id}`, {
         method: 'DELETE',
@@ -67,12 +68,13 @@ function Dashboard() {
           Authorization: `Bearer ${token}`,
         },
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to delete invoice');
       }
-      
+
       setInvoices(prev => prev.filter(inv => inv._id !== id));
+      setFilteredInvoices(prev => prev.filter(inv => inv._id !== id));
     } catch (error) {
       console.error('Error deleting invoice:', error);
     }
@@ -83,13 +85,13 @@ function Dashboard() {
       const date =
         typeof dateInput === 'number' || /^\d{13}$/.test(dateInput)
           ? new Date(Number(dateInput))
-          : parseISO(dateInput)
+          : parseISO(dateInput);
 
-      return format(date, 'dd/MM/yyyy')
+      return format(date, 'dd/MM/yyyy');
     } catch {
-      return dateInput
+      return dateInput;
     }
-  }
+  };
 
   const getStatusClass = (status) => {
     switch (status) {
@@ -107,9 +109,10 @@ function Dashboard() {
     }
   };
 
-  // Show loading or redirect if no token
+  const totalAmount = filteredInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+
   if (!token) {
-    return <div>Loading...</div>;
+    return <div>Chargement...</div>;
   }
 
   return (
@@ -119,28 +122,37 @@ function Dashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-gray-900">Bienvenue, {user?.name || 'User'}</h1>
-          <p className="text-gray-600">Gérer vos notes de frais et suivez vos dépenses</p>
+          <p className="text-gray-600">Gérez vos notes de frais et suivez vos dépenses</p>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+        <div className={`grid grid-cols-1 sm:grid-cols-${user?.role === 'admin' ? '4' : '3'} gap-4 mb-10`}>
           <div className="bg-white shadow rounded-lg p-4">
             <p className="text-sm text-gray-500">En cours</p>
             <p className="text-2xl font-bold text-error-500">
-              {invoices.filter(inv => inv.status === 'en cours').length}
+              {filteredInvoices.filter(inv => inv.status === 'en cours').length}
             </p>
           </div>
           <div className="bg-white shadow rounded-lg p-4">
             <p className="text-sm text-gray-500">En attente</p>
             <p className="text-2xl font-bold text-warning-500">
-              {invoices.filter(inv => inv.status === 'en attente').length}
+              {filteredInvoices.filter(inv => inv.status === 'en attente').length}
             </p>
           </div>
           <div className="bg-white shadow rounded-lg p-4">
             <p className="text-sm text-gray-500">Payé</p>
             <p className="text-2xl font-bold text-success-500">
-              {invoices.filter(inv => inv.status === 'payé').length}
+              {filteredInvoices.filter(inv => inv.status === 'payé').length}
             </p>
           </div>
+
+          {user?.role === 'admin' && (
+            <div className="bg-white shadow rounded-lg p-4">
+              <p className="text-sm text-gray-500">Montant total</p>
+              <p className="text-2xl font-bold text-primary-500">
+                {totalAmount.toFixed(2)} €
+              </p>
+            </div>
+          )}
         </div>
 
         <InvoiceList
@@ -149,6 +161,7 @@ function Dashboard() {
           onView={handleView}
           onEdit={handleEdit}
           onDelete={handleDelete}
+          onFilterChange={setFilteredInvoices}
         />
       </div>
 
@@ -156,17 +169,18 @@ function Dashboard() {
         isOpen={isNewInvoiceModalOpen}
         onClose={() => setIsNewInvoiceModalOpen(false)}
         editInvoice={editInvoice}
+        onInvoiceSaved={fetchInvoices}
       />
 
       {selectedInvoice && (
         <Modal
           isOpen={isViewModalOpen}
           onClose={() => setIsViewModalOpen(false)}
-          title="Invoice Details"
+          title="Détails de la note"
           maxWidth="max-w-2xl"
           footer={
             <Button variant="secondary" onClick={() => setIsViewModalOpen(false)}>
-              Close
+              Fermer
             </Button>
           }
         >
@@ -183,11 +197,11 @@ function Dashboard() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <p className="text-gray-500 text-sm">Issued Date</p>
+                <p className="text-gray-500 text-sm">Date de création</p>
                 <p className="font-medium">{formatDate(selectedInvoice.createdAt)}</p>
               </div>
               <div>
-                <p className="text-gray-500 text-sm">Due Date</p>
+                <p className="text-gray-500 text-sm">Date de facturation</p>
                 <p className="font-medium">{formatDate(selectedInvoice.date)}</p>
               </div>
             </div>
@@ -199,10 +213,10 @@ function Dashboard() {
                   <p className="mt-1">{selectedInvoice.description}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-500 mb-1">Preview:</p>
+                  <p className="text-sm text-gray-500 mb-1">Aperçu :</p>
                   <img
                     src={selectedInvoice.proof}
-                    alt="Proof of bill"
+                    alt="Justificatif"
                     className="rounded-md max-h-48 object-contain border border-gray-200"
                     onError={(e) => (e.target.style.display = 'none')}
                   />
@@ -212,10 +226,17 @@ function Dashboard() {
 
             <div className="border-t border-gray-200 pt-4">
               <div className="flex justify-between">
-                <p className="text-lg font-medium">Cout total</p>
+                <p className="text-lg font-medium">Coût total</p>
                 <p className="text-lg font-semibold">€{selectedInvoice.amount.toFixed(2)}</p>
               </div>
             </div>
+
+            {user?.role === 'admin' && selectedInvoice.userEmail && (
+              <div className="mt-4">
+                <p className="text-gray-500 text-sm">Email de l'auteur</p>
+                <p className="font-medium">{selectedInvoice.userEmail}</p>
+              </div>
+            )}
 
             <div className="flex justify-end mt-8 gap-3">
               <Button
@@ -226,9 +247,6 @@ function Dashboard() {
                 }}
               >
                 Modifier
-              </Button>
-              <Button>
-                {selectedInvoice.status === 'paid' ? 'Download PDF' : 'Marqué comme payé'}
               </Button>
             </div>
           </div>

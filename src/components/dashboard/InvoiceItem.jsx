@@ -3,9 +3,12 @@ import { format, parseISO } from 'date-fns';
 import { FiMoreVertical } from 'react-icons/fi';
 import PropTypes from 'prop-types';
 import DropdownMenuPortal from '../dashboard/DropdownMenuPortal';
+import { useAuth } from '../../contexts/AuthContext'
+
 
 function InvoiceItem({ invoice, onDelete, onView, onEdit }) {
-  const { _id, amount, date, status, createdAt, description, type } = invoice;
+  const { _id, amount, date, status, createdAt, userEmail, type } = invoice;
+  const { user } = useAuth()
 
   const buttonRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -41,18 +44,25 @@ function InvoiceItem({ invoice, onDelete, onView, onEdit }) {
       <div className="flex items-center space-x-4">
         <div className="flex flex-col">
           <h3 className="text-lg font-medium text-gray-900">{type || 'Invoice'}</h3>
-          <p className="text-sm text-gray-500">{_id}</p>
+          <p className="text-sm text-gray-500">ID: {_id}</p>
         </div>
       </div>
 
+      {user?.role === 'admin' && (
+        <div className="text-left hidden sm:block">
+          <p className="text-sm text-gray-500">Utilisateur</p>
+          <p className="text-sm font-medium">{formatDate(userEmail)}</p>
+        </div>
+      )}
+        
       <div className="flex items-center space-x-8">
         <div className="text-right hidden sm:block">
-          <p className="text-sm text-gray-500">Created</p>
+          <p className="text-sm text-gray-500">Date de création</p>
           <p className="text-sm font-medium">{formatDate(createdAt)}</p>
         </div>
 
         <div className="text-right hidden md:block">
-          <p className="text-sm text-gray-500">Date</p>
+          <p className="text-sm text-gray-500">Date de facture</p>
           <p className="text-sm font-medium">{formatDate(date)}</p>
         </div>
 
@@ -63,7 +73,7 @@ function InvoiceItem({ invoice, onDelete, onView, onEdit }) {
         </div>
 
         <div className="text-right">
-          <p className="text-sm text-gray-500">Amount</p>
+          <p className="text-sm text-gray-500">Montant</p>
           <p className="text-base font-semibold">€{amount.toFixed(2)}</p>
         </div>
 
@@ -85,7 +95,7 @@ function InvoiceItem({ invoice, onDelete, onView, onEdit }) {
                 }}
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
-                View details
+                Voir details
               </button>
               <button
                 onClick={() => {
@@ -94,7 +104,7 @@ function InvoiceItem({ invoice, onDelete, onView, onEdit }) {
                 }}
                 className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
               >
-                Edit invoice
+                Modifier la note
               </button>
               <button
                 onClick={() => {
@@ -103,13 +113,14 @@ function InvoiceItem({ invoice, onDelete, onView, onEdit }) {
                 }}
                 className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100"
               >
-                Delete invoice
+                Supprimer la note
               </button>
             </DropdownMenuPortal>
           )}
         </div>
       </div>
     </div>
+
   );
 }
 

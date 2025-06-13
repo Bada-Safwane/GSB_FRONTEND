@@ -19,7 +19,7 @@ function Navbar() {
         <div className="flex justify-between h-16">
           <div className="flex items-center">
             <Link to="/dashboard" className="flex-shrink-0 flex items-center">
-              <span className="text-xl font-semibold text-primary-500">InvoiceApp</span>
+              <span className="text-xl font-semibold text-primary-500">Noted-GSB</span>
             </Link>
           </div>
           

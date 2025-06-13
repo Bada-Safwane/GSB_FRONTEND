@@ -8,7 +8,9 @@ import ProtectedRoute from './routes/ProtectedRoute'
 import './App.css'
 
 function App() {
-  const { user } = useAuth()
+  const { user, loading } = useAuth()
+
+  if (loading) return <div>Loading...</div> // empêche l'écran blanc / redirection infinie
 
   return (
     <div className="min-h-screen bg-gray-50">

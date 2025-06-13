@@ -15,10 +15,10 @@ function Signup() {
         <div className="text-center">
           <h1 className="text-3xl font-bold text-gray-900">InvoiceApp</h1>
           <h2 className="mt-6 text-2xl font-semibold text-gray-900">
-            Create an account
+            Créer un compte
           </h2>
           <p className="mt-2 text-sm text-gray-600">
-            Join thousands of businesses managing their invoices
+            Rejoignez nos milliez d'utilisateurs dans la gestion de notes de frais
           </p>
         </div>
         

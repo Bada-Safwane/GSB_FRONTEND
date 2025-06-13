@@ -17,7 +17,10 @@ export const InvoiceProvider = ({ children }) => {
 
   useEffect(() => {
     const fetchInvoices = async () => {
-      if (!token) return
+      if (!token) {
+        setLoading(false) // Prevent infinite loading if no token
+        return
+      }
 
       try {
         const response = await fetch('http://localhost:3000/bills', {
@@ -31,7 +34,10 @@ export const InvoiceProvider = ({ children }) => {
         }
 
         const data = await response.json()
-        setInvoices(data)
+        console.log("Fetched invoices:", data)
+
+        // Adjust according to backend response structure:
+        setInvoices(data.bills || data) // if backend returns { bills: [...] } or directly an array
       } catch (error) {
         console.error('Error fetching invoices:', error)
       } finally {
@@ -93,7 +99,7 @@ export const InvoiceProvider = ({ children }) => {
       }
 
       const updatedInvoice = await response.json()
-      setInvoices(prev => prev.map(invoice => 
+      setInvoices(prev => prev.map(invoice =>
         invoice._id === id ? updatedInvoice : invoice
       ))
       return updatedInvoice

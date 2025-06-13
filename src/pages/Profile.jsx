@@ -75,23 +75,13 @@ function Profile() {
         throw new Error('Failed to update profile')
       }
 
-      const updatedUser = await res.json()
+      const completeUser = await res.json()
 
-      const completeUser = {
-        ...updatedUser,
-        phone: updatedUser.phone || 'non renseigné',
-        address: updatedUser.address || 'non renseigné',
-        company: updatedUser.company || 'non renseigné',
-        profilePic: updatedUser.profilePic || null,
-      }
 
       setUser(completeUser)
       setFormData({
         name: completeUser.name,
-        email: completeUser.email,
-        phone: completeUser.phone,
-        address: completeUser.address,
-        company: completeUser.company,
+        email: completeUser.email
       })
       setIsEditing(false)
     } catch (err) {
@@ -106,7 +96,7 @@ function Profile() {
   }
 
   if (!user) {
-    return <div className="min-h-screen flex items-center justify-center">Loading...</div>
+    return <div className="min-h-screen flex items-center justify-center">Chargement...</div>
   }
 
   return (
@@ -118,7 +108,7 @@ function Profile() {
             <div className="absolute -bottom-12 left-8">
               <div className="w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-white">
                 <img
-                  src={user?.profilePic || '/src/assets/11435235.png'}
+                  src={user?.profilePic || '/src/assets/avatar.jpg'}
                   alt={user?.name}
                   className="w-full h-full object-cover"
                 />
@@ -149,32 +139,6 @@ function Profile() {
                   onChange={handleChange}
                   required
                 />
-                <Input
-                  label="Email Address"
-                  type="email"
-                  id="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  required
-                />
-                <Input
-                  label="Phone Number"
-                  id="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                />
-                <Input
-                  label="Company"
-                  id="company"
-                  value={formData.company}
-                  onChange={handleChange}
-                />
-                <Input
-                  label="Address"
-                  id="address"
-                  value={formData.address}
-                  onChange={handleChange}
-                />
                 <div className="flex justify-end gap-3 pt-4">
                   <Button type="submit">Modifier</Button>
                 </div>
@@ -182,18 +146,16 @@ function Profile() {
             ) : (
               <div className="space-y-4">
                 <div className="border-b border-gray-100 pb-4">
-                  <h2 className="text-lg font-semibold mb-4">Personal Information</h2>
+                  <h2 className="text-lg font-semibold mb-4">Informations Personnelles</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <ProfileField icon={FiUser} label="Full Name" value={user.name} />
-                    <ProfileField icon={FiMail} label="Email Address" value={user.email} />
-                    <ProfileField icon={FiPhone} label="Phone Number" value={user.phone} />
-                    <ProfileField icon={FiMapPin} label="Address" value={user.address} />
+                    <ProfileField icon={FiUser} label="Nom Complet" value={user.name} />
+                    <ProfileField icon={FiMail} label="Adresse Email" value={user.email} />
                   </div>
                 </div>
 
                 <div>
-                  <h2 className="text-lg font-semibold mb-4">Company Information</h2>
-                  <ProfileField icon={FiEdit} label="Company Name" value={user.company} />
+                  <h2 className="text-lg font-semibold mb-4">Informations Entreprise</h2>
+                  <ProfileField icon={FiEdit} label="Role" value={user.role} />
                 </div>
 
                 <div className="pt-6 border-t border-gray-100 mt-6">
