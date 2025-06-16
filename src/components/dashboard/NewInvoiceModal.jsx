@@ -269,7 +269,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
           />
         </div>
 
-        {/* <div>
+        <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Preuve de facture</label>
           <input
             id="proof"
@@ -290,7 +290,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
               />
             </div>
           )}
-        </div> */}
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
