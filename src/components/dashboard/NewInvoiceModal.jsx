@@ -18,6 +18,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
 
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isDirty, setIsDirty] = useState(false)  // track if form changed
 
   useEffect(() => {
     if (editInvoice) {
@@ -40,10 +41,13 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
       })
     }
     setErrors({})
+    setIsDirty(false)  // reset dirty on open/reset
   }, [editInvoice, isOpen])
 
   const handleChange = (e) => {
     const { id, value, files } = e.target
+    setIsDirty(true) // mark form as changed
+
     if (id === 'proof' && files) {
       setFormData(prev => ({
         ...prev,
@@ -139,6 +143,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
         }
 
         if (onInvoiceSaved) onInvoiceSaved()
+        setIsDirty(false)
         onClose()
       } else {
         const formDataToSend = new FormData()
@@ -164,6 +169,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
         }
 
         if (onInvoiceSaved) onInvoiceSaved()
+        setIsDirty(false)
         onClose()
       }
     } catch (error) {
@@ -177,9 +183,23 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
     }
   }
 
+  // Confirm before closing if form is dirty
+  const handleClose = () => {
+    if (isDirty) {
+      const confirmClose = window.confirm(
+        "You have unsaved changes. Are you sure you want to discard them?"
+      )
+      if (!confirmClose) {
+        return
+      }
+    }
+    onClose()
+    setIsDirty(false)
+  }
+
   const footer = (
     <>
-      <Button variant="secondary" onClick={onClose} disabled={isSubmitting}>
+      <Button variant="secondary" onClick={handleClose} disabled={isSubmitting}>
         Annuler
       </Button>
       <Button onClick={handleSubmit} disabled={isSubmitting}>
@@ -191,7 +211,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
   return (
     <Modal
       isOpen={isOpen}
-      onClose={onClose}
+      onClose={handleClose}
       title={editInvoice ? 'Edit Invoice' : 'Create New Invoice'}
       maxWidth="max-w-2xl"
       footer={footer}
@@ -215,7 +235,7 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
                 ...prev,
                 date: formattedDate
               }));
-
+              setIsDirty(true)
               if (errors.date) {
                 setErrors(prev => ({
                   ...prev,
@@ -247,7 +267,10 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
             <select
               id="status"
               value={formData.status}
-              onChange={handleChange}
+              onChange={(e) => {
+                handleChange(e)
+                setIsDirty(true)
+              }}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
             >
               <option value="en cours">En cours</option>
@@ -264,7 +287,10 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
           <Input
             id="type"
             value={formData.type}
-            onChange={handleChange}
+            onChange={(e) => {
+              handleChange(e)
+              setIsDirty(true)
+            }}
             placeholder="Type de note"
           />
         </div>
@@ -275,7 +301,10 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
             id="proof"
             type="file"
             accept="image/*"
-            onChange={handleChange}
+            onChange={(e) => {
+              handleChange(e)
+              setIsDirty(true)
+            }}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
           />
           {errors.proof && <p className="mt-1 text-sm text-red-600">{errors.proof}</p>}
@@ -298,7 +327,10 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
             id="description"
             placeholder="Entrer description"
             value={formData.description}
-            onChange={handleChange}
+            onChange={(e) => {
+              handleChange(e)
+              setIsDirty(true)
+            }}
             rows={3}
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
             required
