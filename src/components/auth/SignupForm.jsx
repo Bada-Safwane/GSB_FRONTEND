@@ -4,6 +4,11 @@ import { FiMail, FiLock, FiUser } from 'react-icons/fi'
 import Input from '../common/Input'
 import Button from '../common/Button'
 
+/**
+ * SB - Composant formulaire d'inscription
+ * Permet la création d'un nouveau compte utilisateur
+ * @param {Function} onSuccess - Callback appelé après inscription réussie
+ */
 function SignupForm({ onSuccess }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -12,14 +17,21 @@ function SignupForm({ onSuccess }) {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  /**
+   * SB - Gestion de la soumission du formulaire d'inscription
+   * Valide les données et crée un nouvel utilisateur via l'API
+   * @param {Event} e - Événement de soumission du formulaire
+   */
   const handleSubmit = async (e) => {
     e.preventDefault()
 
+    // SB - Validation des champs obligatoires
     if (!name || !email || !password || !confirmPassword) {
       setError('Veuillez remplir tous les champs')
       return
     }
 
+    // SB - Vérification de la correspondance des mots de passe
     if (password !== confirmPassword) {
       setError('Les mots de passe ne correspondent pas')
       return
