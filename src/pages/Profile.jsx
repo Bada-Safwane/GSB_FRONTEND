@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FiUser, FiMail, FiPhone, FiMapPin, FiEdit } from 'react-icons/fi'
+import { FiUser, FiMail, FiBriefcase, FiShield } from 'react-icons/fi'
 import Navbar from '../components/common/Navbar'
 import Button from '../components/common/Button'
 import Input from '../components/common/Input'
@@ -12,11 +12,10 @@ function Profile() {
   const [isEditing, setIsEditing] = useState(false)
   const [user, setUser] = useState(null)
   const [formData, setFormData] = useState({
-    name: '',
+    firstName: '',
+    lastName: '',
     email: '',
-    phone: '',
-    address: '',
-    company: '',
+    service: '',
   })
 
   useEffect(() => {
@@ -28,20 +27,15 @@ function Profile() {
 
         const completeUser = {
           ...data,
-          phone: data.phone || 'non renseigné',
-          address: data.address || 'non renseigné',
-          company: data.company || 'non renseigné',
           profilePic: data.profilePic || null,
         }
 
         setUser(completeUser)
         setFormData({
-          firstName: completeUser.firstName,
-          lastName: completeUser.lastName,
-          email: completeUser.email,
-          phone: completeUser.phone,
-          address: completeUser.address,
-          company: completeUser.company,
+          firstName: completeUser.firstName || '',
+          lastName: completeUser.lastName || '',
+          email: completeUser.email || '',
+          service: completeUser.service || '',
         })
       } catch (err) {
         console.error('Failed to fetch user:', err)
@@ -81,9 +75,10 @@ function Profile() {
 
       setUser(completeUser)
       setFormData({
-        firstName: completeUser.firstName,
-        lastName: completeUser.lastName,
-        email: completeUser.email
+        firstName: completeUser.firstName || '',
+        lastName: completeUser.lastName || '',
+        email: completeUser.email || '',
+        service: completeUser.service || '',
       })
       setIsEditing(false)
     } catch (err) {
@@ -128,7 +123,7 @@ function Profile() {
                 onClick={() => setIsEditing(!isEditing)}
                 variant={isEditing ? 'secondary' : 'primary'}
               >
-                {isEditing ? 'Cancel' : 'Edit Profile'}
+                {isEditing ? 'Annuler' : 'Modifier le profil'}
               </Button>
             </div>
 
@@ -150,8 +145,32 @@ function Profile() {
                     required
                   />
                 </div>
+                <Input
+                  label="Email"
+                  id="email"
+                  type="email"
+                  value={formData.email}
+                  onChange={handleChange}
+                  required
+                  disabled
+                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Service</label>
+                  <select
+                    id="service"
+                    value={formData.service}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+                    required
+                  >
+                    <option value="">Sélectionner un service</option>
+                    {['Comptabilité', 'Commercial', 'Direction', 'Informatique', 'Juridique', 'Marketing', 'Ressources Humaines', 'Logistique'].map(s => (
+                      <option key={s} value={s}>{s}</option>
+                    ))}
+                  </select>
+                </div>
                 <div className="flex justify-end gap-3 pt-4">
-                  <Button type="submit">Modifier</Button>
+                  <Button type="submit">Enregistrer</Button>
                 </div>
               </form>
             ) : (
@@ -159,14 +178,17 @@ function Profile() {
                 <div className="border-b border-gray-100 pb-4">
                   <h2 className="text-lg font-semibold mb-4">Informations Personnelles</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <ProfileField icon={FiUser} label="Nom" value={`${user.firstName} ${user.lastName}`} />
+                    <ProfileField icon={FiUser} label="Nom complet" value={`${user.firstName} ${user.lastName}`} />
                     <ProfileField icon={FiMail} label="Adresse Email" value={user.email} />
                   </div>
                 </div>
 
                 <div>
                   <h2 className="text-lg font-semibold mb-4">Informations Entreprise</h2>
-                  <ProfileField icon={FiEdit} label="Role" value={user.role} />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <ProfileField icon={FiBriefcase} label="Service" value={user.service} />
+                    <ProfileField icon={FiShield} label="Rôle" value={user.role === 'superadmin' ? 'Super Administrateur' : user.role === 'admin' ? 'Administrateur' : 'Visiteur'} />
+                  </div>
                 </div>
 
                 <div className="pt-6 border-t border-gray-100 mt-6">
@@ -175,7 +197,7 @@ function Profile() {
                     variant="secondary"
                     className="text-error-500 border-error-500 hover:bg-error-500 hover:bg-opacity-10"
                   >
-                    Sign Out
+                    Se déconnecter
                   </Button>
                 </div>
               </div>
