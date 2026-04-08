@@ -1,14 +1,16 @@
 import { useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
-import { FiMoreVertical, FiImage, FiCheck, FiX, FiClock } from 'react-icons/fi';
+import { FiMoreVertical, FiImage, FiCheck, FiX, FiClock, FiDollarSign, FiRotateCcw } from 'react-icons/fi';
 import PropTypes from 'prop-types';
 import DropdownMenuPortal from '../dashboard/DropdownMenuPortal';
 import { useAuth } from '../../contexts/AuthContext'
 
 
 function InvoiceItem({ invoice, onDelete, onView, onEdit, onPhotoPreview, onStatusChange, isSelected, onSelect }) {
-  const { _id, amount, date, status, createdAt, userEmail, userName, type, proof } = invoice;
+  const { _id, amount, date, status, createdAt, userEmail, userName, type, proof, rejectionReason } = invoice;
   const { user } = useAuth()
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const isSuperAdmin = user?.role === 'superadmin';
 
   const buttonRef = useRef(null);
   const [open, setOpen] = useState(false);
@@ -16,12 +18,14 @@ function InvoiceItem({ invoice, onDelete, onView, onEdit, onPhotoPreview, onStat
 
   const getStatusClass = () => {
     switch (status) {
-      case 'payé':
+      case 'Remboursée':
         return 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-600/20';
-      case 'en cours':
+      case 'Validée':
+        return 'bg-green-50 text-green-700 ring-1 ring-green-600/20';
+      case 'Refusée':
         return 'bg-red-50 text-red-700 ring-1 ring-red-600/20';
-      case 'en attente':
-        return 'bg-amber-50 text-amber-700 ring-1 ring-amber-600/20';
+      case 'Soumise':
+        return 'bg-blue-50 text-blue-700 ring-1 ring-blue-600/20';
       default:
         return 'bg-gray-100 text-gray-700 ring-1 ring-gray-600/20';
     }
@@ -29,11 +33,12 @@ function InvoiceItem({ invoice, onDelete, onView, onEdit, onPhotoPreview, onStat
 
   const getStatusIcon = () => {
     switch (status) {
-      case 'payé':
+      case 'Remboursée':
+      case 'Validée':
         return <FiCheck className="w-3 h-3" />;
-      case 'en cours':
-        return <FiClock className="w-3 h-3" />;
-      case 'en attente':
+      case 'Refusée':
+        return <FiX className="w-3 h-3" />;
+      case 'Soumise':
         return <FiClock className="w-3 h-3" />;
       default:
         return null;
@@ -68,7 +73,7 @@ function InvoiceItem({ invoice, onDelete, onView, onEdit, onPhotoPreview, onStat
       {/* Left section: checkbox + info */}
       <div className="flex items-center gap-4 min-w-0 flex-1">
         {/* Checkbox for bulk select (admin only) */}
-        {user?.role === 'admin' && (
+        {isAdmin && (
           <input
             type="checkbox"
             checked={isSelected || false}
@@ -106,10 +111,6 @@ function InvoiceItem({ invoice, onDelete, onView, onEdit, onPhotoPreview, onStat
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-gray-900 truncate">{type || 'Facture'}</h3>
-            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${getStatusClass()}`}>
-              {getStatusIcon()}
-              {status}
-            </span>
           </div>
           <p className="text-xs text-gray-400 mt-0.5 font-mono truncate">{_id}</p>
         </div>
@@ -117,10 +118,10 @@ function InvoiceItem({ invoice, onDelete, onView, onEdit, onPhotoPreview, onStat
 
       {/* Middle section: metadata */}
       <div className="hidden lg:flex items-center gap-8 flex-shrink-0 px-4">
-        {user?.role === 'admin' && (
+        {isAdmin && (
           <div className="text-left w-40">
-            <p className="text-sm font-medium text-gray-700 truncate">{userName && userName !== userEmail ? userName : userEmail}</p>
-            {userName && userName !== userEmail && (
+            <p className="text-sm font-medium text-gray-700 truncate">{userName && userName !== userEmail && !userName.includes('undefined') ? userName : userEmail}</p>
+            {userName && userName !== userEmail && !userName.includes('undefined') && (
               <p className="text-xs text-gray-400 truncate">{userEmail}</p>
             )}
           </div>
@@ -133,6 +134,13 @@ function InvoiceItem({ invoice, onDelete, onView, onEdit, onPhotoPreview, onStat
         <div className="text-left w-28">
           <p className="text-sm font-medium text-gray-700">{formatDate(date)}</p>
         </div>
+
+        <div className="w-28 flex items-center">
+          <span className={`inline-flex items-center justify-center gap-1 w-full px-2 py-0.5 rounded-full text-xs font-medium whitespace-nowrap ${getStatusClass()}`}>
+            {getStatusIcon()}
+            {status}
+          </span>
+        </div>
       </div>
 
       {/* Right section: amount + actions */}
@@ -142,39 +150,57 @@ function InvoiceItem({ invoice, onDelete, onView, onEdit, onPhotoPreview, onStat
         </div>
 
         {/* Quick status actions for admin */}
-        {user?.role === 'admin' && (
+        {isAdmin && (
           <div className="hidden sm:flex items-center justify-center gap-1 w-20">
-            {status !== 'payé' && (
+            {status === 'Soumise' && (
               <>
-            <button
-              onClick={() => handleQuickStatus('payé')}
-              disabled={statusLoading}
-              className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 transition-colors disabled:opacity-50"
-              title="Valider (Payé)"
-            >
-              <FiCheck className="w-4 h-4" />
-            </button>
-            {status !== 'en attente' && (
-              <button
-                onClick={() => handleQuickStatus('en attente')}
-                disabled={statusLoading}
-                className="p-1.5 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-600 hover:text-amber-700 transition-colors disabled:opacity-50"
-                title="Mettre en attente"
-              >
-                <FiClock className="w-4 h-4" />
-              </button>
-            )}
-            {status !== 'en cours' && (
-              <button
-                onClick={() => handleQuickStatus('en cours')}
-                disabled={statusLoading}
-                className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 transition-colors disabled:opacity-50"
-                title="Refuser (En cours)"
-              >
-                <FiX className="w-4 h-4" />
-              </button>
-            )}
+                <button
+                  onClick={() => handleQuickStatus('Validée')}
+                  disabled={statusLoading}
+                  className="p-1.5 rounded-lg bg-green-50 hover:bg-green-100 text-green-600 hover:text-green-700 transition-colors disabled:opacity-50"
+                  title="Valider"
+                >
+                  <FiCheck className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleQuickStatus('Refusée')}
+                  disabled={statusLoading}
+                  className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 transition-colors disabled:opacity-50"
+                  title="Refuser"
+                >
+                  <FiX className="w-4 h-4" />
+                </button>
               </>
+            )}
+            {status === 'Validée' && (
+              <>
+                <button
+                  onClick={() => handleQuickStatus('Remboursée')}
+                  disabled={statusLoading}
+                  className="p-1.5 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-emerald-600 hover:text-emerald-700 transition-colors disabled:opacity-50"
+                  title="Rembourser"
+                >
+                  <FiDollarSign className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleQuickStatus('Refusée')}
+                  disabled={statusLoading}
+                  className="p-1.5 rounded-lg bg-red-50 hover:bg-red-100 text-red-600 hover:text-red-700 transition-colors disabled:opacity-50"
+                  title="Refuser"
+                >
+                  <FiX className="w-4 h-4" />
+                </button>
+              </>
+            )}
+            {status === 'Refusée' && (
+              <button
+                onClick={() => handleQuickStatus('Soumise')}
+                disabled={statusLoading}
+                className="p-1.5 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-600 hover:text-blue-700 transition-colors disabled:opacity-50"
+                title="Remettre en attente"
+              >
+                <FiRotateCcw className="w-4 h-4" />
+              </button>
             )}
           </div>
         )}
@@ -211,25 +237,31 @@ function InvoiceItem({ invoice, onDelete, onView, onEdit, onPhotoPreview, onStat
                 <FiMoreVertical className="w-4 h-4" />
                 Voir détails
               </button>
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  onEdit(invoice);
-                }}
-                className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-              >
-                Modifier la note
-              </button>
-              <div className="border-t border-gray-100 my-1" />
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  onDelete(_id);
-                }}
-                className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-              >
-                Supprimer la note
-              </button>
+              {(isSuperAdmin || (!isAdmin && status === 'Soumise')) && (
+                <button
+                  onClick={() => {
+                    setOpen(false);
+                    onEdit(invoice);
+                  }}
+                  className="w-full text-left px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                >
+                  Modifier la note
+                </button>
+              )}
+              {(isSuperAdmin || (!isAdmin && status === 'Soumise')) && (
+                <>
+                  <div className="border-t border-gray-100 my-1" />
+                  <button
+                    onClick={() => {
+                      setOpen(false);
+                      onDelete(_id);
+                    }}
+                    className="w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  >
+                    Supprimer la note
+                  </button>
+                </>
+              )}
             </DropdownMenuPortal>
           )}
         </div>

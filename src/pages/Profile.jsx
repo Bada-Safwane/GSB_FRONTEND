@@ -36,7 +36,8 @@ function Profile() {
 
         setUser(completeUser)
         setFormData({
-          name: completeUser.name,
+          firstName: completeUser.firstName,
+          lastName: completeUser.lastName,
           email: completeUser.email,
           phone: completeUser.phone,
           address: completeUser.address,
@@ -80,7 +81,8 @@ function Profile() {
 
       setUser(completeUser)
       setFormData({
-        name: completeUser.name,
+        firstName: completeUser.firstName,
+        lastName: completeUser.lastName,
         email: completeUser.email
       })
       setIsEditing(false)
@@ -109,7 +111,7 @@ function Profile() {
               <div className="w-24 h-24 rounded-full border-4 border-white overflow-hidden bg-white">
                 <img
                   src={user?.profilePic || '/avatar.jpg'}
-                  alt={user?.name}
+                  alt={`${user?.firstName} ${user?.lastName}`}
                   className="w-full h-full object-cover"
                 />
               </div>
@@ -119,7 +121,7 @@ function Profile() {
           <div className="pt-16 px-8 pb-8">
             <div className="flex justify-between items-start mb-6">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{user.name}</h1>
+                <h1 className="text-2xl font-bold text-gray-900">{user.firstName} {user.lastName}</h1>
                 <p className="text-gray-600">{user.email}</p>
               </div>
               <Button
@@ -132,13 +134,22 @@ function Profile() {
 
             {isEditing ? (
               <form onSubmit={handleSubmit} className="space-y-4">
-                <Input
-                  label="Full Name"
-                  id="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  required
-                />
+                <div className="grid grid-cols-2 gap-4">
+                  <Input
+                    label="Nom"
+                    id="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    required
+                  />
+                  <Input
+                    label="Prénom"
+                    id="firstName"
+                    value={formData.firstName}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
                 <div className="flex justify-end gap-3 pt-4">
                   <Button type="submit">Modifier</Button>
                 </div>
@@ -148,7 +159,7 @@ function Profile() {
                 <div className="border-b border-gray-100 pb-4">
                   <h2 className="text-lg font-semibold mb-4">Informations Personnelles</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <ProfileField icon={FiUser} label="Nom Complet" value={user.name} />
+                    <ProfileField icon={FiUser} label="Nom" value={`${user.firstName} ${user.lastName}`} />
                     <ProfileField icon={FiMail} label="Adresse Email" value={user.email} />
                   </div>
                 </div>

@@ -1,6 +1,6 @@
 import React from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { FiMenu, FiLogOut } from 'react-icons/fi'
+import { FiMenu, FiLogOut, FiUsers } from 'react-icons/fi'
 import { useAuth } from '../../contexts/AuthContext'
 import ProfileAvatar from './ProfileAvatar'
 
@@ -26,10 +26,19 @@ function Navbar() {
           <div className="flex items-center space-x-4">
             {user && (
               <>
+                {user.role === 'superadmin' && (
+                  <Link
+                    to="/users"
+                    className="flex items-center gap-1.5 text-sm text-gray-600 hover:text-gray-900 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+                  >
+                    <FiUsers className="w-4 h-4" />
+                    <span className="hidden sm:inline">Utilisateurs</span>
+                  </Link>
+                )}
                 <Link to="/profile">
                   <ProfileAvatar 
                     src={user.profilePic} 
-                    alt={user.name} 
+                    alt={`${user.firstName} ${user.lastName}`} 
                     className="transition-transform duration-200 hover:scale-105"
                   />
                 </Link>

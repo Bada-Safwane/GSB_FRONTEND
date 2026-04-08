@@ -3,6 +3,7 @@ import Navbar from '../components/common/Navbar';
 import InvoiceList from '../components/dashboard/InvoiceList';
 import NewInvoiceModal from '../components/dashboard/NewInvoiceModal';
 import PhotoPreviewModal from '../components/dashboard/PhotoPreviewModal';
+import RejectionReasonModal from '../components/dashboard/RejectionReasonModal';
 import Modal from '../components/common/Modal';
 import Button from '../components/common/Button';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,6 +22,11 @@ function Dashboard() {
   const [previewInvoice, setPreviewInvoice] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
   const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
+  const [rejectionTarget, setRejectionTarget] = useState(null); // { type: 'single'|'bulk', id?: string }
+  const [rejectionLoading, setRejectionLoading] = useState(false);
+
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
+  const isSuperAdmin = user?.role === 'superadmin';
 
   const fetchInvoices = async () => {
     if (!token) return;
@@ -101,15 +107,14 @@ function Dashboard() {
 
   const getStatusClass = (status) => {
     switch (status) {
-      case 'paid':
-      case 'payé':
-        return 'bg-success-500 bg-opacity-10 text-success-500';
-      case 'pending':
-      case 'en attente':
-        return 'bg-warning-500 bg-opacity-10 text-warning-500';
-      case 'overdue':
-      case 'en cours':
-        return 'bg-error-500 bg-opacity-10 text-error-500';
+      case 'Remboursée':
+        return 'bg-emerald-50 text-emerald-700';
+      case 'Validée':
+        return 'bg-green-50 text-green-700';
+      case 'Refusée':
+        return 'bg-red-50 text-red-700';
+      case 'Soumise':
+        return 'bg-blue-50 text-blue-700';
       default:
         return 'bg-gray-200 text-gray-800';
     }
@@ -120,24 +125,68 @@ function Dashboard() {
     setIsPhotoPreviewOpen(true);
   };
 
-  const handleStatusChange = async (id, newStatus) => {
+  const handleStatusChange = async (id, newStatus, rejectionReason = null) => {
     if (!token) return;
+
+    // Si on refuse, ouvrir la popup de raison
+    if (newStatus === 'Refusée' && !rejectionReason) {
+      setRejectionTarget({ type: 'single', id });
+      return;
+    }
+
     try {
+      const body = { status: newStatus };
+      if (rejectionReason) body.rejectionReason = rejectionReason;
+      if (newStatus !== 'Refusée') body.rejectionReason = null;
+
       const response = await fetch(`https://gsb-backend-nti4.onrender.com/bills/${id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ status: newStatus }),
+        body: JSON.stringify(body),
       });
 
       if (!response.ok) throw new Error('Failed to update status');
 
-      setInvoices(prev => prev.map(inv => inv._id === id ? { ...inv, status: newStatus } : inv));
-      setFilteredInvoices(prev => prev.map(inv => inv._id === id ? { ...inv, status: newStatus } : inv));
+      setInvoices(prev => prev.map(inv => inv._id === id ? { ...inv, status: newStatus, rejectionReason: rejectionReason || null } : inv));
+      setFilteredInvoices(prev => prev.map(inv => inv._id === id ? { ...inv, status: newStatus, rejectionReason: rejectionReason || null } : inv));
     } catch (error) {
       console.error('Error updating status:', error);
+    }
+  };
+
+  const handleRejectionConfirm = async (reason) => {
+    setRejectionLoading(true);
+    try {
+      if (rejectionTarget.type === 'single') {
+        await handleStatusChange(rejectionTarget.id, 'Refusée', reason);
+      } else if (rejectionTarget.type === 'bulk') {
+        // Bulk reject with reason — update each one individually for the reason
+        for (const id of selectedIds) {
+          await fetch(`https://gsb-backend-nti4.onrender.com/bills/${id}`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ status: 'Refusée', rejectionReason: reason }),
+          });
+        }
+        setInvoices(prev => prev.map(inv =>
+          selectedIds.includes(inv._id) ? { ...inv, status: 'Refusée', rejectionReason: reason } : inv
+        ));
+        setFilteredInvoices(prev => prev.map(inv =>
+          selectedIds.includes(inv._id) ? { ...inv, status: 'Refusée', rejectionReason: reason } : inv
+        ));
+        setSelectedIds([]);
+      }
+      setRejectionTarget(null);
+    } catch (error) {
+      console.error('Error rejecting:', error);
+    } finally {
+      setRejectionLoading(false);
     }
   };
 
@@ -158,6 +207,13 @@ function Dashboard() {
 
   const handleBulkStatusChange = async (newStatus) => {
     if (!token || selectedIds.length === 0) return;
+
+    // Si refus en masse, ouvrir la popup de raison
+    if (newStatus === 'Refusée') {
+      setRejectionTarget({ type: 'bulk' });
+      return;
+    }
+
     setStatusUpdateLoading(true);
     try {
       const response = await fetch('https://gsb-backend-nti4.onrender.com/bills/bulk-status', {
@@ -185,7 +241,19 @@ function Dashboard() {
     }
   };
 
-  const totalAmount = filteredInvoices.reduce((sum, inv) => sum + inv.amount, 0);
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const monthlyReimbursed = filteredInvoices
+    .filter(inv => {
+      if (inv.status !== 'Remboursée') return false;
+      const ts = Number(inv.createdAt);
+      if (!ts) return false;
+      const d = new Date(ts);
+      return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+    })
+    .reduce((sum, inv) => sum + inv.amount, 0);
 
   if (!token) {
     return <div>Chargement...</div>;
@@ -197,58 +265,71 @@ function Dashboard() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Bienvenue, {user?.name || 'User'}</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Bienvenue, {user?.firstName} {user?.lastName}</h1>
           <p className="text-gray-600">Gérez vos notes de frais et suivez vos dépenses</p>
         </div>
 
   <div
   className={`grid grid-cols-1 gap-4 mb-8 ${
-    user?.role === 'admin' ? 'sm:grid-cols-4' : 'sm:grid-cols-3'
+    isAdmin ? 'sm:grid-cols-4' : 'sm:grid-cols-3'
   }`}
 >
   <div className="bg-white shadow-sm rounded-xl p-5 border border-gray-100 flex items-center gap-4">
-    <div className="p-3 rounded-xl bg-red-50">
-      <FiAlertCircle className="w-6 h-6 text-red-500" />
+    <div className="p-3 rounded-xl bg-blue-50">
+      <FiClock className="w-6 h-6 text-blue-500" />
     </div>
     <div>
-      <p className="text-sm text-gray-500">En cours</p>
+      <p className="text-sm text-gray-500">Soumises</p>
       <p className="text-2xl font-bold text-gray-900">
-        {filteredInvoices.filter(inv => inv.status === 'en cours').length}
+        {filteredInvoices.filter(inv => inv.status === 'Soumise').length}
       </p>
     </div>
   </div>
   <div className="bg-white shadow-sm rounded-xl p-5 border border-gray-100 flex items-center gap-4">
-    <div className="p-3 rounded-xl bg-amber-50">
-      <FiClock className="w-6 h-6 text-amber-500" />
+    <div className="p-3 rounded-xl bg-green-50">
+      <FiCheckCircle className="w-6 h-6 text-green-500" />
     </div>
     <div>
-      <p className="text-sm text-gray-500">En attente</p>
+      <p className="text-sm text-gray-500">Validées</p>
       <p className="text-2xl font-bold text-gray-900">
-        {filteredInvoices.filter(inv => inv.status === 'en attente').length}
+        {filteredInvoices.filter(inv => inv.status === 'Validée').length}
       </p>
     </div>
   </div>
-  <div className="bg-white shadow-sm rounded-xl p-5 border border-gray-100 flex items-center gap-4">
-    <div className="p-3 rounded-xl bg-emerald-50">
-      <FiCheckCircle className="w-6 h-6 text-emerald-500" />
+  {isAdmin ? (
+    <div className="bg-white shadow-sm rounded-xl p-5 border border-gray-100 flex items-center gap-4">
+      <div className="p-3 rounded-xl bg-red-50">
+        <FiAlertCircle className="w-6 h-6 text-red-500" />
+      </div>
+      <div>
+        <p className="text-sm text-gray-500">Refusées</p>
+        <p className="text-2xl font-bold text-gray-900">
+          {filteredInvoices.filter(inv => inv.status === 'Refusée').length}
+        </p>
+      </div>
     </div>
-    <div>
-      <p className="text-sm text-gray-500">Payé</p>
-      <p className="text-2xl font-bold text-gray-900">
-        {filteredInvoices.filter(inv => inv.status === 'payé').length}
-      </p>
+  ) : (
+    <div className="bg-white shadow-sm rounded-xl p-5 border border-gray-100 flex items-center gap-4">
+      <div className="p-3 rounded-xl bg-emerald-50">
+        <FiCheckCircle className="w-6 h-6 text-emerald-500" />
+      </div>
+      <div>
+        <p className="text-sm text-gray-500">Remboursées</p>
+        <p className="text-2xl font-bold text-gray-900">
+          {filteredInvoices.filter(inv => inv.status === 'Remboursée').length}
+        </p>
+      </div>
     </div>
-  </div>
-
-  {user?.role === 'admin' && (
+  )}
+  {isAdmin && (
     <div className="bg-white shadow-sm rounded-xl p-5 border border-gray-100 flex items-center gap-4">
       <div className="p-3 rounded-xl bg-blue-50">
         <FiTrendingUp className="w-6 h-6 text-blue-500" />
       </div>
       <div>
-        <p className="text-sm text-gray-500">Montant total</p>
+        <p className="text-sm text-gray-500">Remboursé ce mois</p>
         <p className="text-2xl font-bold text-gray-900">
-          {totalAmount.toFixed(2)} €
+          {monthlyReimbursed.toFixed(2)} €
         </p>
       </div>
     </div>
@@ -297,24 +378,36 @@ function Dashboard() {
               <Button variant="secondary" onClick={() => setIsViewModalOpen(false)}>
                 Fermer
               </Button>
-              <Button
-                variant="secondary"
-                onClick={() => {
-                  setIsViewModalOpen(false);
-                  handleEdit(selectedInvoice);
-                }}
-              >
-                Modifier
-              </Button>
-              {user?.role === 'admin' && selectedInvoice.status !== 'payé' && (
+              {(isSuperAdmin || (!isAdmin && selectedInvoice.status === 'Soumise')) && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    setIsViewModalOpen(false);
+                    handleEdit(selectedInvoice);
+                  }}
+                >
+                  Modifier
+                </Button>
+              )}
+              {isAdmin && selectedInvoice.status === 'Soumise' && (
                 <Button
                   variant="success"
                   onClick={() => {
-                    handleStatusChange(selectedInvoice._id, 'payé');
-                    setSelectedInvoice(prev => ({ ...prev, status: 'payé' }));
+                    handleStatusChange(selectedInvoice._id, 'Validée');
+                    setSelectedInvoice(prev => ({ ...prev, status: 'Validée' }));
                   }}
                 >
-                  Valider (Payé)
+                  Valider
+                </Button>
+              )}
+              {isAdmin && selectedInvoice.status === 'Validée' && (
+                <Button
+                  onClick={() => {
+                    handleStatusChange(selectedInvoice._id, 'Remboursée');
+                    setSelectedInvoice(prev => ({ ...prev, status: 'Remboursée' }));
+                  }}
+                >
+                  Rembourser
                 </Button>
               )}
             </div>
@@ -326,7 +419,7 @@ function Dashboard() {
                 <h3 className="text-xl font-semibold text-gray-900">{selectedInvoice.type || 'Facture'}</h3>
                 <p className="text-gray-400 text-xs mt-1 font-mono">{selectedInvoice._id}</p>
               </div>
-              {user?.role === 'admin' ? (
+              {isAdmin ? (
                 <select
                   value={selectedInvoice.status}
                   onChange={(e) => {
@@ -336,9 +429,10 @@ function Dashboard() {
                   }}
                   className={`px-3 py-1.5 rounded-lg text-sm font-medium border-0 focus:ring-2 focus:ring-primary-500 cursor-pointer ${getStatusClass(selectedInvoice.status)}`}
                 >
-                  <option value="en cours">En cours</option>
-                  <option value="en attente">En attente</option>
-                  <option value="payé">Payé</option>
+                  <option value="Soumise">Soumise</option>
+                  <option value="Validée">Validée</option>
+                  <option value="Refusée">Refusée</option>
+                  <option value="Remboursée">Remboursée</option>
                 </select>
               ) : (
                 <span className={`px-3 py-1 rounded-full text-xs font-medium ${getStatusClass(selectedInvoice.status)}`}>
@@ -362,6 +456,13 @@ function Dashboard() {
               <div>
                 <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Description</p>
                 <p className="mt-1 text-gray-700">{selectedInvoice.description}</p>
+              </div>
+            )}
+
+            {selectedInvoice.status === 'Refusée' && selectedInvoice.rejectionReason && (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-red-600 text-xs uppercase tracking-wider font-medium mb-1">Raison du refus</p>
+                <p className="text-red-700 text-sm">{selectedInvoice.rejectionReason}</p>
               </div>
             )}
 
@@ -397,7 +498,7 @@ function Dashboard() {
               </div>
             </div>
 
-            {user?.role === 'admin' && selectedInvoice.userEmail && (
+            {isAdmin && selectedInvoice.userEmail && (
               <div className="bg-gray-50 rounded-lg p-4">
                 <p className="text-gray-400 text-xs uppercase tracking-wider mb-1">Email de l'auteur</p>
                 <p className="font-medium text-gray-800">{selectedInvoice.userEmail}</p>

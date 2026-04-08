@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FiSearch, FiFilter, FiCheck, FiClock, FiX, FiTrash2 } from 'react-icons/fi';
+import { FiSearch, FiFilter, FiCheck, FiClock, FiX, FiTrash2, FiChevronUp, FiChevronDown, FiDollarSign } from 'react-icons/fi';
 import PropTypes from 'prop-types';
 import InvoiceItem from './InvoiceItem';
 import Button from '../common/Button';
@@ -8,11 +8,22 @@ import { useAuth } from '../../contexts/AuthContext';
 function InvoiceList({ invoices = [], onCreateNew, onView, onEdit, onDelete, onFilterChange, onPhotoPreview, onStatusChange, selectedIds, onSelect, onSelectAll, onBulkStatusChange }) {
   const [search, setSearch] = useState('');
   const [filter, setFilter] = useState('all');
+  const [sortField, setSortField] = useState('createdAt');
+  const [sortDir, setSortDir] = useState('desc');
   const { user } = useAuth();
 
   const handleDelete = (id) => {
     if (window.confirm('Êtes-vous sûr de vouloir supprimer cette note ?')) {
       onDelete(id);
+    }
+  };
+
+  const handleSort = (field) => {
+    if (sortField === field) {
+      setSortDir(prev => prev === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDir('asc');
     }
   };
 
@@ -25,7 +36,28 @@ function InvoiceList({ invoices = [], onCreateNew, onView, onEdit, onDelete, onF
       const typeMatch = invoice.type?.toLowerCase().includes(query);
       return !search || descriptionMatch || idMatch || typeMatch;
     })
-    .sort((a, b) => new Date(b.date) - new Date(a.date));
+    .sort((a, b) => {
+      const dir = sortDir === 'asc' ? 1 : -1;
+      const parseDate = (s) => {
+        const p = s?.split('/');
+        return p?.length === 3 ? new Date(`${p[2]}-${p[1]}-${p[0]}`) : new Date(s || 0);
+      };
+      switch (sortField) {
+        case 'type':
+          return dir * (a.type || '').localeCompare(b.type || '');
+        case 'user':
+          return dir * (a.userName || a.userEmail || '').localeCompare(b.userName || b.userEmail || '');
+        case 'amount':
+          return dir * (a.amount - b.amount);
+        case 'date':
+          return dir * (parseDate(a.date) - parseDate(b.date));
+        case 'status':
+          return dir * (a.status || '').localeCompare(b.status || '');
+        case 'createdAt':
+        default:
+          return dir * (Number(a.createdAt) - Number(b.createdAt));
+      }
+    });
 
   useEffect(() => {
     if (onFilterChange) {
@@ -33,7 +65,7 @@ function InvoiceList({ invoices = [], onCreateNew, onView, onEdit, onDelete, onF
     }
   }, [filteredInvoices]);
 
-  const isAdmin = user?.role === 'admin';
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin';
   const allFilteredSelected = filteredInvoices.length > 0 && filteredInvoices.every(inv => selectedIds?.includes(inv._id));
   const someSelected = selectedIds?.length > 0;
 
@@ -60,9 +92,10 @@ function InvoiceList({ invoices = [], onCreateNew, onView, onEdit, onDelete, onF
                 className="appearance-none pl-4 pr-10 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-gray-50 text-sm transition-all"
               >
                 <option value="all">Tous les statuts</option>
-                <option value="payé">Payé</option>
-                <option value="en cours">En cours</option>
-                <option value="en attente">En attente</option>
+                <option value="Soumise">Soumise</option>
+                <option value="Validée">Validée</option>
+                <option value="Refusée">Refusée</option>
+                <option value="Remboursée">Remboursée</option>
               </select>
               <FiFilter className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
             </div>
@@ -79,32 +112,32 @@ function InvoiceList({ invoices = [], onCreateNew, onView, onEdit, onDelete, onF
           </span>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => onBulkStatusChange('payé')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-sm font-medium transition-colors"
+              onClick={() => onBulkStatusChange('Validée')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-green-100 hover:bg-green-200 text-green-700 text-sm font-medium transition-colors"
             >
               <FiCheck className="w-3.5 h-3.5" />
               Valider
             </button>
             <button
-              onClick={() => onBulkStatusChange('en attente')}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-amber-100 hover:bg-amber-200 text-amber-700 text-sm font-medium transition-colors"
+              onClick={() => onBulkStatusChange('Remboursée')}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-100 hover:bg-emerald-200 text-emerald-700 text-sm font-medium transition-colors"
             >
-              <FiClock className="w-3.5 h-3.5" />
-              En attente
+              <FiDollarSign className="w-3.5 h-3.5" />
+              Rembourser
             </button>
             <button
-              onClick={() => onBulkStatusChange('en cours')}
+              onClick={() => onBulkStatusChange('Refusée')}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-100 hover:bg-red-200 text-red-700 text-sm font-medium transition-colors"
             >
               <FiX className="w-3.5 h-3.5" />
-              En cours
+              Refuser
             </button>
           </div>
         </div>
       )}
 
       {/* Column Headers */}
-      <div className="hidden lg:flex items-center px-5 py-2.5 bg-gray-50 border-b border-gray-100 text-xs font-medium text-gray-500 uppercase tracking-wider">
+      <div className="hidden lg:flex items-center px-5 py-2.5 bg-gray-50 border-b border-gray-100 text-xs font-medium text-gray-500 uppercase tracking-wider select-none">
         <div className="flex items-center gap-4 flex-1">
           {isAdmin && (
             <input
@@ -115,15 +148,48 @@ function InvoiceList({ invoices = [], onCreateNew, onView, onEdit, onDelete, onF
             />
           )}
           <span className="w-10"></span>
-          <span>Note de frais</span>
+          <button onClick={() => handleSort('type')} className="flex items-center gap-1 hover:text-gray-700 transition-colors group">
+            Note de frais
+            {sortField === 'type'
+              ? (sortDir === 'asc' ? <FiChevronUp className="w-3 h-3 text-primary-500" /> : <FiChevronDown className="w-3 h-3 text-primary-500" />)
+              : <FiChevronUp className="w-3 h-3 opacity-0 group-hover:opacity-40" />}
+          </button>
         </div>
         <div className="flex items-center gap-8 flex-shrink-0 px-4">
-          {isAdmin && <span className="w-40">Utilisateur</span>}
-          <span className="w-28">Créée le</span>
-          <span className="w-28">Facture</span>
+          {isAdmin && (
+            <button onClick={() => handleSort('user')} className="flex items-center gap-1 w-40 hover:text-gray-700 transition-colors group">
+              Utilisateur
+              {sortField === 'user'
+                ? (sortDir === 'asc' ? <FiChevronUp className="w-3 h-3 text-primary-500" /> : <FiChevronDown className="w-3 h-3 text-primary-500" />)
+                : <FiChevronUp className="w-3 h-3 opacity-0 group-hover:opacity-40" />}
+            </button>
+          )}
+          <button onClick={() => handleSort('createdAt')} className="flex items-center gap-1 w-28 hover:text-gray-700 transition-colors group">
+            Créée le
+            {sortField === 'createdAt'
+              ? (sortDir === 'asc' ? <FiChevronUp className="w-3 h-3 text-primary-500" /> : <FiChevronDown className="w-3 h-3 text-primary-500" />)
+              : <FiChevronDown className="w-3 h-3 text-primary-500" />}
+          </button>
+          <button onClick={() => handleSort('date')} className="flex items-center gap-1 w-28 hover:text-gray-700 transition-colors group">
+            Facture
+            {sortField === 'date'
+              ? (sortDir === 'asc' ? <FiChevronUp className="w-3 h-3 text-primary-500" /> : <FiChevronDown className="w-3 h-3 text-primary-500" />)
+              : <FiChevronUp className="w-3 h-3 opacity-0 group-hover:opacity-40" />}
+          </button>
+          <button onClick={() => handleSort('status')} className="flex items-center justify-center gap-1 w-28 hover:text-gray-700 transition-colors group">
+            Statut
+            {sortField === 'status'
+              ? (sortDir === 'asc' ? <FiChevronUp className="w-3 h-3 text-primary-500" /> : <FiChevronDown className="w-3 h-3 text-primary-500" />)
+              : <FiChevronUp className="w-3 h-3 opacity-0 group-hover:opacity-40" />}
+          </button>
         </div>
         <div className="flex items-center gap-3 flex-shrink-0">
-          <span className="w-24 text-right">Montant</span>
+          <button onClick={() => handleSort('amount')} className="flex items-center gap-1 w-24 justify-end hover:text-gray-700 transition-colors group">
+            Montant
+            {sortField === 'amount'
+              ? (sortDir === 'asc' ? <FiChevronUp className="w-3 h-3 text-primary-500" /> : <FiChevronDown className="w-3 h-3 text-primary-500" />)
+              : <FiChevronUp className="w-3 h-3 opacity-0 group-hover:opacity-40" />}
+          </button>
           {isAdmin && <span className="w-20 text-center">Actions</span>}
           <span className="w-10"></span>
         </div>
