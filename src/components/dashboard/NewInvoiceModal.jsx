@@ -4,7 +4,6 @@ import Modal from '../common/Modal'
 import Input from '../common/Input'
 import Button from '../common/Button'
 import { useAuth } from '../../contexts/AuthContext'
-import { FiCamera, FiLoader } from 'react-icons/fi'
 
 const EXPENSE_TYPES = [
   'Transport',
@@ -33,62 +32,6 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
   const [errors, setErrors] = useState({})
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isDirty, setIsDirty] = useState(false)  // track if form changed
-  const [ocrLoading, setOcrLoading] = useState(false)
-  const [ocrResult, setOcrResult] = useState(null)
-  const [ocrMessage, setOcrMessage] = useState(null) // { type: 'success'|'error'|'warning', text }
-
-  const handleOcr = async (file) => {
-    if (!file || !token) return
-    setOcrLoading(true)
-    setOcrResult(null)
-    setOcrMessage(null)
-    try {
-      const formDataOcr = new FormData()
-      formDataOcr.append('image', file)
-      const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 60000) // 60s timeout
-      const response = await fetch('https://gsb-backend-nti4.onrender.com/bills/ocr', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-        body: formDataOcr,
-        signal: controller.signal,
-      })
-      clearTimeout(timeout)
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}))
-        throw new Error(err.message || 'Erreur serveur')
-      }
-      const data = await response.json()
-      setOcrResult(data)
-
-      let filled = []
-      if (data.extractedAmount) {
-        setFormData(prev => ({ ...prev, amount: String(data.extractedAmount) }))
-        setIsDirty(true)
-        filled.push(`Montant: ${data.extractedAmount} €`)
-      }
-      if (data.extractedDate) {
-        setFormData(prev => ({ ...prev, date: data.extractedDate }))
-        setIsDirty(true)
-        filled.push(`Date: ${data.extractedDate}`)
-      }
-
-      if (filled.length > 0) {
-        setOcrMessage({ type: 'success', text: `Champs remplis automatiquement — ${filled.join(', ')}` })
-      } else {
-        setOcrMessage({ type: 'warning', text: 'Aucune donnée détectée. Vérifiez que l\'image est nette et lisible.' })
-      }
-    } catch (error) {
-      console.error('OCR error:', error)
-      if (error.name === 'AbortError') {
-        setOcrMessage({ type: 'error', text: 'L\'analyse a pris trop de temps. Réessayez ou remplissez manuellement.' })
-      } else {
-        setOcrMessage({ type: 'error', text: `Erreur lors de l'analyse : ${error.message}` })
-      }
-    } finally {
-      setOcrLoading(false)
-    }
-  }
 
   useEffect(() => {
     if (editInvoice) {
@@ -416,7 +359,6 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Preuve de facture</label>
-          <div className="flex gap-2">
             <input
               id="proof"
               type="file"
@@ -425,32 +367,9 @@ function NewInvoiceModal({ isOpen, onClose, editInvoice = null, onInvoiceSaved }
                 handleChange(e)
                 setIsDirty(true)
               }}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200"
             />
-            {formData.proof && (
-              <button
-                type="button"
-                onClick={() => handleOcr(formData.proof)}
-                disabled={ocrLoading}
-                className="inline-flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-600 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 whitespace-nowrap"
-                title="Analyse OCR — extraire montant et date automatiquement"
-              >
-                {ocrLoading ? <FiLoader className="w-4 h-4 animate-spin" /> : <FiCamera className="w-4 h-4" />}
-                {ocrLoading ? 'Analyse en cours...' : 'Remplir auto (OCR)'}
-              </button>
-            )}
-          </div>
           {errors.proof && <p className="mt-1 text-sm text-red-600">{errors.proof}</p>}
-          {ocrMessage && (
-            <div className={`mt-2 p-3 rounded-lg text-sm flex items-start gap-2 ${
-              ocrMessage.type === 'success' ? 'bg-green-50 border border-green-200 text-green-700' :
-              ocrMessage.type === 'warning' ? 'bg-amber-50 border border-amber-200 text-amber-700' :
-              'bg-red-50 border border-red-200 text-red-700'
-            }`}>
-              <span className="text-base mt-0.5">{ocrMessage.type === 'success' ? '✓' : ocrMessage.type === 'warning' ? '⚠' : '✗'}</span>
-              <span>{ocrMessage.text}</span>
-            </div>
-          )}
           {editInvoice?.proof && (
             <div className="mt-2">
               <p className="text-sm text-gray-500 mb-1">Preuve actuelle:</p>

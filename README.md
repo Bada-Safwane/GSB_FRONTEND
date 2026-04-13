@@ -1,6 +1,6 @@
 # 🏥 GSB Frontend — Gestion des Notes de Frais
 
-Application web de gestion des notes de frais développée pour **GSB (Galaxy Swiss Bourdin)**, permettant aux visiteurs médicaux de soumettre, suivre et gérer leurs frais professionnels. Les administrateurs (comptables) peuvent consulter et valider l'ensemble des notes.
+Application web de gestion des notes de frais développée pour **GSB (Galaxy Swiss Bourdin)**, permettant aux visiteurs médicaux de soumettre, suivre et gérer leurs frais professionnels. Les administrateurs (comptables) peuvent consulter et valider l'ensemble des notes. Les super administrateurs gèrent les utilisateurs et ont un accès complet.
 
 ## 📋 Table des matières
 
@@ -19,41 +19,54 @@ Application web de gestion des notes de frais développée pour **GSB (Galaxy Sw
 
 GSB Frontend est une **Single Page Application (SPA)** construite avec React et Vite. Elle communique avec une API REST backend hébergée sur Render pour gérer l'authentification JWT et les opérations CRUD sur les notes de frais.
 
-**Deux rôles utilisateurs :**
+**Trois rôles utilisateurs :**
 | Rôle | Description |
 |------|-------------|
-| **Visiteur** | Peut créer, modifier et supprimer ses propres notes de frais |
-| **Admin** | Peut consulter, modifier le statut et gérer toutes les notes de frais |
+| **Visiteur** | Peut créer, modifier et supprimer ses propres notes de frais (si statut Soumise) |
+| **Admin** | Peut consulter toutes les notes, changer les statuts et refuser avec motif |
+| **Super Admin** | Peut tout modifier/supprimer, gérer les utilisateurs et envoyer des resets de mot de passe |
 
 ## Fonctionnalités
 
 ### Authentification
-- Inscription avec nom, email et mot de passe
+- Inscription avec prénom, nom, service, email et mot de passe
 - Connexion avec email et mot de passe
+- **Réinitialisation de mot de passe** via email (lien "Mot de passe oublié")
 - Authentification par token JWT (stocké dans `localStorage`)
 - Déconnexion avec nettoyage du token
 - Routes protégées (redirection automatique vers `/login`)
 
 ### Tableau de bord
 - Affichage de toutes les notes de frais de l'utilisateur
-- Compteurs par statut : *En cours*, *En attente*, *Payé*
-- Montant total affiché (admin uniquement)
-- Recherche par ID ou email utilisateur
+- Compteurs par statut : *Soumises*, *Validées*, *Refusées* (admin) / *Remboursées* (visiteur)
+- **Montant total remboursé dans le mois** en cours
+- Recherche par nom d'utilisateur ou ID
 - Filtrage par statut
-- Tri chronologique (plus récentes en premier)
+- **Tri cliquable par colonnes** (nom, utilisateur, date, facture, montant, statut) — double clic pour inverser
 
 ### Gestion des notes de frais
 - Création d'une nouvelle note avec justificatif (upload fichier)
-- Modification d'une note existante
-- Suppression avec confirmation
+- **Type de frais en dropdown** : Transport, Hébergement, Restauration, Fournitures, Téléphone, Déplacement, Formation, Représentation, Autre (avec champ libre limité à 30 caractères)
+- Modification d'une note existante (superadmin ou visiteur si Soumise)
+- Suppression avec confirmation (superadmin ou visiteur si Soumise)
 - Visualisation détaillée dans une modale
-- Changement de statut (admin uniquement)
+- **Prévisualisation des justificatifs** (miniature + modale plein écran)
+- **Actions rapides de changement de statut** (boutons directement sur chaque ligne)
+- **Sélection multiple et actions en masse** (valider, refuser, rembourser plusieurs notes)
+- **Motif de refus** : popup de saisie lors du refus d'une note, affiché en encart rouge dans les détails
 
 ### Profil utilisateur
-- Consultation des informations personnelles
-- Modification du nom
-- Affichage du rôle et de l'email
+- Consultation des informations personnelles (prénom, nom, email, service, rôle)
+- Modification du prénom, nom et service
+- Affichage du rôle en français
 - Déconnexion depuis le profil
+
+### Gestion des utilisateurs (Super Admin)
+- **Page dédiée** listant tous les utilisateurs avec filtrage par service
+- Création de nouveaux utilisateurs avec choix du rôle et du service
+- Modification des informations utilisateur
+- Suppression d'utilisateurs
+- **Envoi d'emails de réinitialisation de mot de passe**
 
 ## Stack technique
 
@@ -124,6 +137,7 @@ GSB_FRONTEND/
 │   ├── assets/                 # Images et ressources
 │   ├── components/
 │   │   ├── auth/               # Composants d'authentification
+│   │   │   ├── ForgotPasswordModal.jsx  # Modale mot de passe oublié
 │   │   │   ├── LoginForm.jsx   # Formulaire de connexion
 │   │   │   └── SignupForm.jsx  # Formulaire d'inscription
 │   │   ├── common/             # Composants réutilisables
@@ -135,8 +149,10 @@ GSB_FRONTEND/
 │   │   └── dashboard/          # Composants du tableau de bord
 │   │       ├── DropdownMenuPortal.jsx # Menu contextuel (portail)
 │   │       ├── InvoiceItem.jsx  # Ligne de note de frais
-│   │       ├── InvoiceList.jsx  # Liste avec recherche & filtres
-│   │       └── NewInvoiceModal.jsx # Modale création/édition
+│   │       ├── InvoiceList.jsx  # Liste avec recherche, filtres & tri
+│   │       ├── NewInvoiceModal.jsx # Modale création/édition
+│   │       ├── PhotoPreviewModal.jsx # Prévisualisation justificatif
+│   │       └── RejectionReasonModal.jsx # Modale motif de refus
 │   ├── contexts/               # Contextes React (state global)
 │   │   ├── AuthContext.jsx     # Authentification & JWT
 │   │   └── InvoiceContext.jsx  # Gestion des notes de frais
@@ -144,13 +160,15 @@ GSB_FRONTEND/
 │   │   ├── Dashboard.jsx       # Tableau de bord principal
 │   │   ├── Login.jsx           # Page de connexion
 │   │   ├── Profile.jsx         # Page de profil
-│   │   └── Signup.jsx          # Page d'inscription
+│   │   ├── ResetPassword.jsx   # Page de réinitialisation de mdp
+│   │   ├── Signup.jsx          # Page d'inscription
+│   │   └── UserManagement.jsx  # Gestion des utilisateurs (super admin)
 │   ├── routes/
 │   │   └── ProtectedRoute.jsx  # Garde de route authentifiée
 │   ├── utils/                  # Fonctions utilitaires
 │   ├── App.jsx                 # Composant racine & routing
 │   ├── App.css                 # Styles globaux & animations
-│   ├── index.css               # Configuration Tailwind & reset
+│   ├── index.css               # Configuration Tailwind & reset & dropdown arrows
 │   └── main.jsx                # Point d'entrée React
 ├── index.html                  # Template HTML
 ├── package.json                # Dépendances & scripts
@@ -177,11 +195,17 @@ L'application communique avec les endpoints suivants :
 | Méthode | Endpoint | Description | Auth |
 |---------|----------|-------------|------|
 | `POST` | `/auth/login` | Connexion utilisateur | Non |
+| `POST` | `/auth/forgot-password` | Demande de reset mdp | Non |
+| `POST` | `/auth/reset-password` | Réinitialisation mdp | Non |
+| `POST` | `/auth/admin-reset-password` | Reset mdp par admin | JWT |
 | `POST` | `/users` | Inscription utilisateur | Non |
+| `GET` | `/users` | Lister les utilisateurs | JWT |
 | `GET` | `/users/:email` | Récupérer un profil | Non |
-| `PUT` | `/users/:email` | Modifier un profil | Non |
+| `PUT` | `/users/:email` | Modifier un profil | JWT |
+| `DELETE` | `/users/:email` | Supprimer un utilisateur | JWT |
 | `GET` | `/bills` | Lister les notes de frais | JWT |
 | `POST` | `/bills` | Créer une note (multipart) | JWT |
+| `PUT` | `/bills/bulk-status` | Changement de statut en masse | JWT |
 | `PUT` | `/bills/:id` | Modifier une note | JWT |
 | `DELETE` | `/bills/:id` | Supprimer une note | JWT |
 | `POST` | `/upload` | Upload de justificatif | JWT |

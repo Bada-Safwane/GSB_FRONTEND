@@ -1,8 +1,8 @@
 # 📘 Documentation Technique — GSB Frontend
 
 > **Projet :** GSB — Gestion des Notes de Frais (Frontend)  
-> **Version :** 0.1.0  
-> **Date :** Mars 2026  
+> **Version :** 2.0.0  
+> **Date :** Avril 2026  
 > **Contexte :** BTS SIO — Projet AP2  
 
 ---
@@ -13,13 +13,21 @@
 
 L'application GSB Frontend est une interface web permettant aux **visiteurs médicaux** du laboratoire Galaxy Swiss Bourdin de :
 - Soumettre leurs notes de frais avec justificatifs
-- Suivre l'état de traitement de leurs notes (en cours, en attente, payé)
-- Consulter et modifier leur profil
+- Suivre l'état de traitement de leurs notes (Soumise, Validée, Refusée, Remboursée)
+- Consulter et modifier leur profil (prénom, nom, service)
+- Réinitialiser leur mot de passe via email
 
 Les **administrateurs (comptables)** disposent en plus de :
 - La visualisation de toutes les notes de frais de tous les utilisateurs
-- La modification du statut des notes
-- L'accès au montant total des dépenses
+- Le changement de statut des notes (actions rapides ou en masse)
+- La prévisualisation des justificatifs
+- La saisie d'un motif de refus lors du rejet d'une note
+
+Les **super administrateurs** ont accès à :
+- Toutes les fonctionnalités admin
+- La modification et suppression de toutes les notes
+- La gestion des utilisateurs (création, modification, envoi de reset de mot de passe)
+- La page dédiée de gestion des utilisateurs
 
 ### 1.2 Architecture globale
 
@@ -75,15 +83,27 @@ L'application utilise un design system inspiré d'Apple avec des couleurs person
 | Couleur | Code hexadécimal | Usage |
 |---------|-----------------|-------|
 | `primary-500` | `#0A84FF` | Actions principales, liens, accent (Apple Blue) |
-| `success-500` | `#30D158` | Statut "payé" (Apple Green) |
-| `warning-500` | `#FF9F0A` | Statut "en attente" (Apple Orange) |
-| `error-500` | `#FF3B30` | Statut "en cours", erreurs (Apple Red) |
+| `success-500` | `#30D158` | Statut "Validée" (Apple Green) |
+| `warning-500` | `#FF9F0A` | Non utilisé actuellement |
+| `error-500` | `#FF3B30` | Statut "Refusée", erreurs (Apple Red) |
 | `gray-50` → `gray-900` | — | Échelle de gris pour backgrounds, textes, bordures |
+
+**Couleurs des statuts :**
+| Statut | Couleur | Classes Tailwind |
+|--------|---------|------------------|
+| `Soumise` | Bleu | `bg-blue-50 text-blue-700 ring-blue-600/20` |
+| `Validée` | Vert | `bg-green-50 text-green-700 ring-green-600/20` |
+| `Refusée` | Rouge | `bg-red-50 text-red-700 ring-red-600/20` |
+| `Remboursée` | Émeraude | `bg-emerald-50 text-emerald-700 ring-emerald-600/20` |
 
 **Animations personnalisées :**
 - `fade-in` : Apparition progressive (opacité 0→1, 300ms)
 - `slide-in` : Glissement vers le haut (translateY 10px→0, 300ms)
 - `scale-in` : Zoom léger (scale 0.95→1, 200ms)
+
+**CSS Global (`index.css`)** :
+- Flèches de dropdown personnalisées via `background-image` SVG sur tous les `<select>`
+- Animation `@keyframes fadeIn` utilitaire
 
 ---
 
@@ -98,9 +118,11 @@ main.jsx
             └── InvoiceProvider (Context)
                  └── App.jsx (Routes)
                       ├── /login ─────── Login.jsx
-                      │                    └── LoginForm.jsx
+                      │                    ├── LoginForm.jsx
+                      │                    └── ForgotPasswordModal.jsx
                       ├── /signup ────── Signup.jsx
                       │                    └── SignupForm.jsx
+                      ├── /reset-password ── ResetPassword.jsx
                       ├── /dashboard ──── ProtectedRoute
                       │                    └── Dashboard.jsx
                       │                         ├── Navbar.jsx
@@ -108,9 +130,14 @@ main.jsx
                       │                         │    └── InvoiceItem.jsx
                       │                         │         └── DropdownMenuPortal.jsx
                       │                         ├── NewInvoiceModal.jsx
+                      │                         ├── PhotoPreviewModal.jsx
+                      │                         ├── RejectionReasonModal.jsx
                       │                         └── Modal.jsx (détails)
-                      └── /profile ────── ProtectedRoute
-                                           └── Profile.jsx
+                      ├── /profile ────── ProtectedRoute
+                      │                    └── Profile.jsx
+                      │                         └── Navbar.jsx
+                      └── /users ──────── ProtectedRoute
+                                           └── UserManagement.jsx
                                                 └── Navbar.jsx
 ```
 
@@ -123,8 +150,10 @@ Défini dans `App.jsx` avec React Router v6 :
 | `/` | — | Non | → `/dashboard` (si connecté) ou `/login` |
 | `/login` | `Login` | Non | → `/dashboard` si déjà connecté |
 | `/signup` | `Signup` | Non | → `/dashboard` si déjà connecté |
+| `/reset-password` | `ResetPassword` | Non | Page publique (avec token dans l'URL) |
 | `/dashboard` | `Dashboard` | `ProtectedRoute` | → `/login` si non connecté |
 | `/profile` | `Profile` | `ProtectedRoute` | → `/login` si non connecté |
+| `/users` | `UserManagement` | `ProtectedRoute` | → `/login` si non connecté |
 
 **`ProtectedRoute`** : Composant wrapper qui vérifie la présence d'un `user` dans le contexte d'authentification. Affiche un écran de chargement pendant la vérification, puis redirige vers `/login` si l'utilisateur n'est pas authentifié.
 
@@ -143,6 +172,18 @@ L'application utilise l'**API Context de React** pour la gestion de l'état glob
 | `logout()` | `function` | Supprime le token de `localStorage` et réinitialise l'état |
 | `setToken` | `function` | Setter direct du token |
 | `setUser` | `function` | Setter direct de l'utilisateur |
+
+**Données utilisateur décodées du JWT :**
+```json
+{
+  "id": "64a1b2c3d4e5f6a7b8c9d0e1",
+  "email": "jean.dupont@gsb.fr",
+  "firstName": "Jean",
+  "lastName": "Dupont",
+  "service": "Commercial",
+  "role": "visiteur"
+}
+```
 
 **Flot d'authentification :**
 
@@ -235,7 +276,8 @@ Barre de navigation affichée sur les pages protégées.
 
 **Éléments affichés :**
 - Logo "Noted-GSB" (lien vers `/dashboard`)
-- Avatar de l'utilisateur (lien vers `/profile`)
+- Lien "Utilisateurs" (superadmin uniquement — remplacé par "Accueil" sur la page `/users`)
+- Avatar de l'utilisateur avec prénom (lien vers `/profile`)
 - Bouton de déconnexion (icône `FiLogOut`)
 
 #### `ProfileAvatar.jsx`
@@ -257,13 +299,23 @@ Formulaire de connexion avec validation côté client.
 **Champs :** email, mot de passe  
 **Validation :** Tous les champs requis  
 **Actions :** Appel de `login()` du contexte Auth → navigation vers `/dashboard`  
-**Lien :** Redirection vers la page d'inscription
+**Lien :** Redirection vers la page d'inscription  
+**Mot de passe oublié :** Lien centré ouvrant la modale `ForgotPasswordModal`
+
+#### `ForgotPasswordModal.jsx`
+
+Modale de demande de réinitialisation de mot de passe.
+
+**Champ :** email  
+**Action :** `POST /auth/forgot-password` — envoie un email de réinitialisation  
+**Feedback :** Message de confirmation ("Si un compte existe...") sans révéler l'existence du compte
 
 #### `SignupForm.jsx`
 
 Formulaire d'inscription avec validation.
 
-**Champs :** nom complet, email, mot de passe, confirmation du mot de passe  
+**Champs :** prénom, nom, email, service (dropdown), mot de passe, confirmation du mot de passe  
+**Services disponibles :** Comptabilité, Commercial, Direction, Informatique, Juridique, Marketing, Ressources Humaines, Logistique  
 **Validation :**
 - Tous les champs requis
 - Correspondance des mots de passe  
@@ -275,13 +327,16 @@ Formulaire d'inscription avec validation.
 
 #### `InvoiceList.jsx`
 
-Liste des notes de frais avec recherche et filtrage.
+Liste des notes de frais avec recherche, filtrage et tri.
 
 **Fonctionnalités :**
-- Barre de recherche par email utilisateur (admin) ou ID
-- Filtre par statut (select) : Tous, Payé, En cours, En attente
-- Tri par date décroissante
-- Appel de `onFilterChange` à chaque changement de filtre (pour les compteurs)
+- Barre de recherche par nom d'utilisateur (admin/superadmin) ou ID
+- Filtre par statut (select) : Tous, Soumise, Validée, Refusée, Remboursée
+- **Tri cliquable par colonnes** : Note de frais, Utilisateur (admin), Créée le, Facture, Montant, Statut — un second clic inverse l'ordre
+- Sélection multiple via checkboxes (admin/superadmin)
+- Barre d'actions en masse : Valider / En attente / Refuser les notes sélectionnées
+- En-têtes de colonnes alignés avec indicateur de tri (flèche ↑↓)
+- Footer avec compteur de résultats et filtre actif
 - État vide avec invitation à créer une note
 
 **PropTypes validés :**
@@ -313,23 +368,34 @@ Ligne individuelle d'une note de frais dans la liste.
 
 **Informations affichées :**
 - Type de note et ID
-- Email utilisateur (admin uniquement)
+- Nom de l'utilisateur + email (admin/superadmin uniquement)
 - Date de création et date de facture
-- Badge de statut coloré
+- Badge de statut coloré (colonne dédiée alignée)
 - Montant
+- Miniature du justificatif (cliquable pour prévisualisation)
+- Checkbox de sélection (admin/superadmin)
+
+**Actions rapides (admin/superadmin) :**
+| Statut actuel | Boutons disponibles |
+|---------------|---------------------|
+| `Soumise` | ✓ Valider → Validée · ✗ Refuser → Refusée |
+| `Validée` | $ Rembourser → Remboursée · ✗ Refuser → Refusée |
+| `Refusée` | ↺ Remettre → Soumise |
+| `Remboursée` | — (état terminal) |
 
 **Menu contextuel (3 points) :**
+- Voir le justificatif (ouvre PhotoPreviewModal)
 - Voir détails
-- Modifier la note
-- Supprimer la note (avec confirmation)
+- Modifier la note (superadmin uniquement, ou visiteur si note Soumise)
+- Supprimer la note (superadmin uniquement, ou visiteur si note Soumise)
 
 #### `NewInvoiceModal.jsx`
 
 Modale de création et d'édition de note de frais.
 
 **Mode création :**
-- Champs : date, montant, description, type, justificatif (fichier obligatoire)
-- Statut fixé à "en cours"
+- Champs : date, montant, description, type (dropdown), justificatif (fichier obligatoire)
+- Statut fixé à "Soumise"
 - Envoi via `POST /bills` en `multipart/form-data`
 
 **Mode édition :**
@@ -337,11 +403,33 @@ Modale de création et d'édition de note de frais.
 - Upload optionnel d'un nouveau justificatif (via `POST /upload`)
 - Envoi via `PUT /bills/:id` en JSON
 
+**Types de frais (dropdown) :**
+Transport, Hébergement, Restauration, Fournitures, Téléphone, Déplacement, Formation, Représentation, Autre.  
+Le choix "Autre" fait apparaître un champ texte libre limité à 30 caractères avec compteur.
+
 **Particularités :**
-- Les admins peuvent modifier le statut (select : En cours / En attente / Payé)
+- Les admins/superadmins peuvent modifier le statut (select : Soumise / Validée / Refusée / Remboursée)
 - Les visiteurs ont le statut en champ caché
 - Détection des modifications (`isDirty`) avec confirmation avant fermeture
 - Validation côté client (montant > 0, description requise, fichier requis en création)
+
+#### `PhotoPreviewModal.jsx`
+
+Modale plein écran de prévisualisation des justificatifs.
+
+**Fonctionnalités :**
+- Affichage de l'image en taille réelle
+- Bouton pour télécharger le justificatif
+- Bouton pour ouvrir dans un nouvel onglet
+- Fermeture via bouton X, touche Échap ou clic sur l'overlay
+
+#### `RejectionReasonModal.jsx`
+
+Modale de saisie du motif de refus.
+
+**Déclenchée :** Lors du refus d'une note (action rapide, bulk action, ou dropdown de statut)  
+**Champ :** Zone de texte pour saisir la raison du refus  
+**Action :** Appelle le callback de changement de statut avec le motif
 
 #### `DropdownMenuPortal.jsx`
 
@@ -359,38 +447,72 @@ Menu déroulant rendu via un **portail React** (`createPortal`) directement dans
 
 ### 5.1 `Login.jsx`
 
-Page de connexion minimaliste centrée. Affiche le titre "GSB", un sous-titre d'accueil et le composant `LoginForm` dans une carte blanche. Redirige vers `/dashboard` après connexion réussie.
+Page de connexion minimaliste centrée. Affiche le titre "GSB", un sous-titre d'accueil et le composant `LoginForm` dans une carte blanche. Redirige vers `/dashboard` après connexion réussie. Contient le lien "Mot de passe oublié ?" qui ouvre la modale `ForgotPasswordModal`.
 
 ### 5.2 `Signup.jsx`
 
-Page d'inscription centrée. Affiche le formulaire `SignupForm` avec un lien vers les CGU. Redirige vers `/dashboard` après inscription réussie.
+Page d'inscription centrée. Affiche le formulaire `SignupForm` avec les champs prénom, nom, email, service, mot de passe. Redirige vers `/dashboard` après inscription réussie.
 
-### 5.3 `Dashboard.jsx`
+### 5.3 `ResetPassword.jsx`
+
+Page de réinitialisation de mot de passe. Accessible via un lien envoyé par email contenant un `token` et un `email` en paramètres d'URL. Permet à l'utilisateur de définir un nouveau mot de passe. Appelle `POST /auth/reset-password`.
+
+### 5.4 `Dashboard.jsx`
 
 Page principale de l'application après connexion.
 
 **Sections :**
-1. **En-tête** : Message de bienvenue personnalisé avec le nom de l'utilisateur
-2. **Compteurs** : Cartes affichant le nombre de notes par statut + montant total (admin)
-3. **Liste des notes** : Composant `InvoiceList` avec search/filter
-4. **Modales** : Création/édition (`NewInvoiceModal`) et détails (`Modal`)
+1. **En-tête** : Message de bienvenue personnalisé avec le prénom et nom de l'utilisateur
+2. **Compteurs** :
+   - Notes soumises (en attente de traitement)
+   - Notes validées
+   - Notes refusées (admin/superadmin) ou notes remboursées (visiteur)
+   - Montant total remboursé dans le mois en cours
+3. **Liste des notes** : Composant `InvoiceList` avec search/filter/sort/selection
+4. **Modales** : Création/édition (`NewInvoiceModal`), détails (`Modal`), photo (`PhotoPreviewModal`), refus (`RejectionReasonModal`)
 
 **Gestion des données :**
 - Fetch des factures au montage et après chaque création/édition (`fetchInvoices`)
 - Suppression avec mise à jour immédiate de l'état local
 - Formatage des dates via `date-fns` (support timestamp et ISO)
+- Changement de statut rapide et en masse
+- Affichage conditionnel des boutons selon le rôle (visiteur / admin / superadmin)
 
-### 5.4 `Profile.jsx`
+**Modale de détails :**
+- Affichage complet de la note (description, montant, date, type, statut)
+- Photo du justificatif cliquable pour agrandir
+- Raison du refus affichée en encart rouge si le statut est "Refusée"
+- Dropdown de changement de statut (admin/superadmin)
+- Boutons : Modifier (superadmin ou visiteur si Soumise), Rembourser (si Validée)
+
+### 5.5 `Profile.jsx`
 
 Page de profil utilisateur.
 
 **Sections :**
 1. **Bannière** : Header bleu avec avatar en overlay
-2. **Informations** : Nom, email, rôle
-3. **Édition** : Formulaire de modification du nom
-4. **Déconnexion** : Bouton de sign out
+2. **Informations personnelles** : Prénom, nom, email
+3. **Informations entreprise** : Service, rôle (affiché en français : "Visiteur", "Administrateur", "Super Administrateur")
+4. **Édition** : Formulaire de modification du prénom, nom et service (dropdown)
+5. **Déconnexion** : Bouton de sign out
 
 **Données :** Fetch depuis `GET /users/:email` au montage, mise à jour via `PUT /users/:email`.
+
+### 5.6 `UserManagement.jsx`
+
+Page de gestion des utilisateurs (accessible uniquement au super administrateur).
+
+**Fonctionnalités :**
+- Tableau listant tous les utilisateurs avec colonnes : Nom, Email, Service, Rôle, Actions
+- Filtrage par service (dropdown)
+- Recherche par nom ou email
+- Création d'un nouvel utilisateur avec choix du rôle et du service
+- Modification des informations d'un utilisateur (sans changer le mot de passe)
+- Suppression d'un utilisateur (avec confirmation)
+- Envoi d'un email de réinitialisation de mot de passe via `POST /auth/admin-reset-password`
+
+**Navigation :**
+Quand l'utilisateur est sur cette page, le bouton "Utilisateurs" de la Navbar est remplacé par un bouton "Accueil" (icône maison) pour retourner au dashboard.
 
 ---
 
@@ -411,22 +533,28 @@ https://gsb-backend-nti4.onrender.com
 | Méthode | Endpoint | Body | Réponse | Headers Auth |
 |---------|----------|------|---------|-------------|
 | `POST` | `/auth/login` | `{ email, password }` | `{ token: "jwt..." }` | Non |
-| `POST` | `/users` | `{ name, email, password, role }` | Objet utilisateur | Non |
+| `POST` | `/auth/forgot-password` | `{ email }` | `{ message }` | Non |
+| `POST` | `/auth/reset-password` | `{ email, token, newPassword }` | `{ message }` | Non |
+| `POST` | `/auth/admin-reset-password` | `{ email }` | `{ message }` | `Bearer <token>` |
+| `POST` | `/users` | `{ firstName, lastName, service, email, password, role }` | Objet utilisateur | Non |
 
 #### Utilisateurs
 
 | Méthode | Endpoint | Body | Réponse | Headers Auth |
 |---------|----------|------|---------|-------------|
+| `GET` | `/users` | — | Liste de tous les utilisateurs | `Bearer <token>` |
 | `GET` | `/users/:email` | — | Objet utilisateur complet | Non |
-| `PUT` | `/users/:email` | `{ name, email, ... }` | Objet utilisateur mis à jour | Non |
+| `PUT` | `/users/:email` | `{ firstName, lastName, service, ... }` | Objet utilisateur mis à jour | `Bearer <token>` |
+| `DELETE` | `/users/:email` | — | — | `Bearer <token>` |
 
 #### Notes de frais (Bills)
 
 | Méthode | Endpoint | Body | Réponse | Headers Auth |
 |---------|----------|------|---------|-------------|
-| `GET` | `/bills` | — | `[{ _id, amount, date, status, ... }]` | `Bearer <token>` |
+| `GET` | `/bills` | — | `[{ _id, amount, date, status, userName, ... }]` | `Bearer <token>` |
 | `POST` | `/bills` | FormData: `proof` (file) + `metadata` (JSON string) | Objet facture créée | `Bearer <token>` |
 | `PUT` | `/bills/:id` | JSON objet facture | Objet facture modifiée | `Bearer <token>` |
+| `PUT` | `/bills/bulk-status` | `{ ids: [...], status, rejectionReason? }` | `{ message, modifiedCount }` | `Bearer <token>` |
 | `DELETE` | `/bills/:id` | — | — | `Bearer <token>` |
 
 #### Upload
@@ -437,13 +565,16 @@ https://gsb-backend-nti4.onrender.com
 
 ### 6.3 Format du token JWT
 
-Le token JWT décodé contient au minimum :
+Le token JWT décodé contient :
 
 ```json
 {
+  "id": "64a1b2c3d4e5f6a7b8c9d0e1",
   "email": "user@example.com",
-  "name": "Nom Utilisateur",
-  "role": "visiteur | admin",
+  "firstName": "Jean",
+  "lastName": "Dupont",
+  "service": "Commercial",
+  "role": "visiteur | admin | superadmin",
   "iat": 1709316000,
   "exp": 1709402400
 }
@@ -457,14 +588,17 @@ Le token JWT décodé contient au minimum :
   "date": "dd/MM/yyyy",
   "amount": 150.00,
   "description": "Frais de déplacement",
-  "status": "en cours | en attente | payé",
-  "type": "facture",
+  "status": "Soumise | Validée | Refusée | Remboursée",
+  "type": "Transport | Hébergement | Restauration | ... | Autre",
   "proof": "https://url-du-justificatif.jpg",
-  "user": "ObjectId du créateur",
   "userEmail": "user@example.com",
+  "userName": "Jean Dupont",
+  "rejectionReason": "Justificatif illisible",
   "createdAt": "ISO 8601 timestamp"
 }
 ```
+
+> **Note :** Le champ `userName` est ajouté côté backend lors de la récupération des notes par un admin/superadmin. Il n'est pas stocké dans la collection MongoDB.
 
 ---
 
@@ -484,12 +618,24 @@ Le composant `ProtectedRoute` vérifie la présence de l'objet `user` dans le co
 ### 7.3 Gestion des rôles
 
 Le rôle de l'utilisateur (`user.role`) est extrait du token JWT et conditionne :
-- L'affichage de la carte "Montant total" sur le dashboard (admin uniquement)
-- L'affichage de la colonne "Utilisateur" dans la liste des notes (admin uniquement)
-- L'accès au select de modification du statut dans le formulaire de note (admin uniquement)
-- La barre de recherche par email utilisateur (admin uniquement)
 
-> **Limitation :** Le contrôle des rôles est uniquement côté frontend. La validation des permissions doit être assurée côté backend.
+| Fonctionnalité | visiteur | admin | superadmin |
+|----------------|:--------:|:-----:|:----------:|
+| Voir ses propres notes | ✅ | ✅ | ✅ |
+| Voir toutes les notes | ❌ | ✅ | ✅ |
+| Créer une note | ✅ | ✅ | ✅ |
+| Modifier ses propres notes (si Soumise) | ✅ | ❌ | ✅ |
+| Modifier toutes les notes | ❌ | ❌ | ✅ |
+| Supprimer ses propres notes (si Soumise) | ✅ | ❌ | ✅ |
+| Supprimer toutes les notes | ❌ | ❌ | ✅ |
+| Changer le statut d'une note | ❌ | ✅ | ✅ |
+| Actions en masse (bulk status) | ❌ | ✅ | ✅ |
+| Carte "Remboursé ce mois" | ✅ | ✅ | ✅ |
+| Carte "Notes refusées" | ❌ | ✅ | ✅ |
+| Page de gestion des utilisateurs | ❌ | ❌ | ✅ |
+| Envoyer un reset de mot de passe | ❌ | ❌ | ✅ |
+
+> **Limitation :** Le contrôle des rôles est effectué côté frontend ET backend. Le backend valide systématiquement les permissions via `req.user.role`.
 
 ---
 
@@ -564,4 +710,10 @@ Génère un dossier `dist/` contenant les fichiers statiques optimisés (HTML, C
 | **HMR** | Hot Module Replacement — mise à jour à chaud sans rechargement complet |
 | **FormData** | Interface web pour construire des données multipart/form-data |
 | **Visiteur** | Rôle utilisateur standard (visiteur médical) — peut gérer ses propres notes |
-| **Admin** | Rôle administrateur (comptable) — peut gérer toutes les notes et changer les statuts |
+| **Admin** | Rôle administrateur (comptable) — peut consulter toutes les notes et changer les statuts |
+| **Super Admin** | Rôle super administrateur — peut tout modifier/supprimer et gérer les utilisateurs |
+| **Bulk Action** | Action en masse — modification du statut de plusieurs notes simultanément |
+
+---
+
+*Documentation mise à jour le 13/04/2026 — GSB Frontend v2.0.0*

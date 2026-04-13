@@ -85,20 +85,17 @@ function InvoiceList({ invoices = [], onCreateNew, onView, onEdit, onDelete, onF
             />
           </div>
           <div className="flex items-center gap-2">
-            <div className="relative">
-              <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                className="appearance-none pl-4 pr-10 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-gray-50 text-sm transition-all"
-              >
+            <select
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              className="pl-4 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent bg-gray-50 text-sm transition-all"
+            >
                 <option value="all">Tous les statuts</option>
                 <option value="Soumise">Soumise</option>
                 <option value="Validée">Validée</option>
                 <option value="Refusée">Refusée</option>
                 <option value="Remboursée">Remboursée</option>
               </select>
-              <FiFilter className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            </div>
             <Button onClick={onCreateNew}>+ Nouvelle note</Button>
           </div>
         </div>

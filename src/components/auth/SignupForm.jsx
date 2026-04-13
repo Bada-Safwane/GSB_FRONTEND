@@ -117,7 +117,7 @@ function SignupForm({ onSuccess }) {
           id="service"
           value={service}
           onChange={(e) => setService(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 bg-white text-sm appearance-none"
+          className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all duration-200 bg-white text-sm"
           required
         >
           <option value="" disabled>Sélectionner un service</option>
