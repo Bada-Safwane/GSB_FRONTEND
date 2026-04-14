@@ -15,7 +15,7 @@ L'application GSB Frontend est une interface web permettant aux **visiteurs méd
 - Soumettre leurs notes de frais avec justificatifs
 - Suivre l'état de traitement de leurs notes (Soumise, Validée, Refusée, Remboursée)
 - Consulter et modifier leur profil (prénom, nom, service)
-- Réinitialiser leur mot de passe via email
+- Changer leur mot de passe depuis leur profil
 
 Les **administrateurs (comptables)** disposent en plus de :
 - La visualisation de toutes les notes de frais de tous les utilisateurs
@@ -26,7 +26,7 @@ Les **administrateurs (comptables)** disposent en plus de :
 Les **super administrateurs** ont accès à :
 - Toutes les fonctionnalités admin
 - La modification et suppression de toutes les notes
-- La gestion des utilisateurs (création, modification, envoi de reset de mot de passe)
+- La gestion des utilisateurs (création, modification, réinitialisation directe de mot de passe)
 - La page dédiée de gestion des utilisateurs
 
 ### 1.2 Architecture globale
@@ -118,11 +118,9 @@ main.jsx
             └── InvoiceProvider (Context)
                  └── App.jsx (Routes)
                       ├── /login ─────── Login.jsx
-                      │                    ├── LoginForm.jsx
-                      │                    └── ForgotPasswordModal.jsx
+                      │                    └── LoginForm.jsx
                       ├── /signup ────── Signup.jsx
                       │                    └── SignupForm.jsx
-                      ├── /reset-password ── ResetPassword.jsx
                       ├── /dashboard ──── ProtectedRoute
                       │                    └── Dashboard.jsx
                       │                         ├── Navbar.jsx
@@ -150,7 +148,6 @@ Défini dans `App.jsx` avec React Router v6 :
 | `/` | — | Non | → `/dashboard` (si connecté) ou `/login` |
 | `/login` | `Login` | Non | → `/dashboard` si déjà connecté |
 | `/signup` | `Signup` | Non | → `/dashboard` si déjà connecté |
-| `/reset-password` | `ResetPassword` | Non | Page publique (avec token dans l'URL) |
 | `/dashboard` | `Dashboard` | `ProtectedRoute` | → `/login` si non connecté |
 | `/profile` | `Profile` | `ProtectedRoute` | → `/login` si non connecté |
 | `/users` | `UserManagement` | `ProtectedRoute` | → `/login` si non connecté |
@@ -299,16 +296,7 @@ Formulaire de connexion avec validation côté client.
 **Champs :** email, mot de passe  
 **Validation :** Tous les champs requis  
 **Actions :** Appel de `login()` du contexte Auth → navigation vers `/dashboard`  
-**Lien :** Redirection vers la page d'inscription  
-**Mot de passe oublié :** Lien centré ouvrant la modale `ForgotPasswordModal`
-
-#### `ForgotPasswordModal.jsx`
-
-Modale de demande de réinitialisation de mot de passe.
-
-**Champ :** email  
-**Action :** `POST /auth/forgot-password` — envoie un email de réinitialisation  
-**Feedback :** Message de confirmation ("Si un compte existe...") sans révéler l'existence du compte
+**Lien :** Redirection vers la page d'inscription
 
 #### `SignupForm.jsx`
 
@@ -447,17 +435,13 @@ Menu déroulant rendu via un **portail React** (`createPortal`) directement dans
 
 ### 5.1 `Login.jsx`
 
-Page de connexion minimaliste centrée. Affiche le titre "GSB", un sous-titre d'accueil et le composant `LoginForm` dans une carte blanche. Redirige vers `/dashboard` après connexion réussie. Contient le lien "Mot de passe oublié ?" qui ouvre la modale `ForgotPasswordModal`.
+Page de connexion minimaliste centrée. Affiche le titre "GSB", un sous-titre d'accueil et le composant `LoginForm` dans une carte blanche. Redirige vers `/dashboard` après connexion réussie.
 
 ### 5.2 `Signup.jsx`
 
 Page d'inscription centrée. Affiche le formulaire `SignupForm` avec les champs prénom, nom, email, service, mot de passe. Redirige vers `/dashboard` après inscription réussie.
 
-### 5.3 `ResetPassword.jsx`
-
-Page de réinitialisation de mot de passe. Accessible via un lien envoyé par email contenant un `token` et un `email` en paramètres d'URL. Permet à l'utilisateur de définir un nouveau mot de passe. Appelle `POST /auth/reset-password`.
-
-### 5.4 `Dashboard.jsx`
+### 5.3 `Dashboard.jsx`
 
 Page principale de l'application après connexion.
 
@@ -485,7 +469,7 @@ Page principale de l'application après connexion.
 - Dropdown de changement de statut (admin/superadmin)
 - Boutons : Modifier (superadmin ou visiteur si Soumise), Rembourser (si Validée)
 
-### 5.5 `Profile.jsx`
+### 5.4 `Profile.jsx`
 
 Page de profil utilisateur.
 
@@ -494,11 +478,12 @@ Page de profil utilisateur.
 2. **Informations personnelles** : Prénom, nom, email
 3. **Informations entreprise** : Service, rôle (affiché en français : "Visiteur", "Administrateur", "Super Administrateur")
 4. **Édition** : Formulaire de modification du prénom, nom et service (dropdown)
-5. **Déconnexion** : Bouton de sign out
+5. **Changement de mot de passe** : Formulaire dépliable avec mot de passe actuel, nouveau mot de passe et confirmation — appelle `POST /auth/change-password`
+6. **Déconnexion** : Bouton de sign out
 
 **Données :** Fetch depuis `GET /users/:email` au montage, mise à jour via `PUT /users/:email`.
 
-### 5.6 `UserManagement.jsx`
+### 5.5 `UserManagement.jsx`
 
 Page de gestion des utilisateurs (accessible uniquement au super administrateur).
 
@@ -509,7 +494,7 @@ Page de gestion des utilisateurs (accessible uniquement au super administrateur)
 - Création d'un nouvel utilisateur avec choix du rôle et du service
 - Modification des informations d'un utilisateur (sans changer le mot de passe)
 - Suppression d'un utilisateur (avec confirmation)
-- Envoi d'un email de réinitialisation de mot de passe via `POST /auth/admin-reset-password`
+- Réinitialisation directe du mot de passe d'un utilisateur via une modale (nouveau mot de passe + confirmation) — appelle `POST /auth/admin-reset-password` avec `{ email, newPassword }`
 
 **Navigation :**
 Quand l'utilisateur est sur cette page, le bouton "Utilisateurs" de la Navbar est remplacé par un bouton "Accueil" (icône maison) pour retourner au dashboard.
@@ -533,9 +518,8 @@ https://gsb-backend-nti4.onrender.com
 | Méthode | Endpoint | Body | Réponse | Headers Auth |
 |---------|----------|------|---------|-------------|
 | `POST` | `/auth/login` | `{ email, password }` | `{ token: "jwt..." }` | Non |
-| `POST` | `/auth/forgot-password` | `{ email }` | `{ message }` | Non |
-| `POST` | `/auth/reset-password` | `{ email, token, newPassword }` | `{ message }` | Non |
-| `POST` | `/auth/admin-reset-password` | `{ email }` | `{ message }` | `Bearer <token>` |
+| `POST` | `/auth/change-password` | `{ currentPassword, newPassword }` | `{ message }` | `Bearer <token>` |
+| `POST` | `/auth/admin-reset-password` | `{ email, newPassword }` | `{ message }` | `Bearer <token>` |
 | `POST` | `/users` | `{ firstName, lastName, service, email, password, role }` | Objet utilisateur | Non |
 
 #### Utilisateurs
@@ -633,7 +617,8 @@ Le rôle de l'utilisateur (`user.role`) est extrait du token JWT et conditionne 
 | Carte "Remboursé ce mois" | ✅ | ✅ | ✅ |
 | Carte "Notes refusées" | ❌ | ✅ | ✅ |
 | Page de gestion des utilisateurs | ❌ | ❌ | ✅ |
-| Envoyer un reset de mot de passe | ❌ | ❌ | ✅ |
+| Réinitialiser le mot de passe d'un utilisateur | ❌ | ❌ | ✅ |
+| Changer son propre mot de passe | ✅ | ✅ | ✅ |
 
 > **Limitation :** Le contrôle des rôles est effectué côté frontend ET backend. Le backend valide systématiquement les permissions via `req.user.role`.
 

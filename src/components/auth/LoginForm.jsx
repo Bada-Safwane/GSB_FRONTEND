@@ -4,7 +4,6 @@ import { FiMail, FiLock } from 'react-icons/fi'
 import Input from '../common/Input'
 import Button from '../common/Button'
 import { useAuth } from '../../contexts/AuthContext'
-import ForgotPasswordModal from './ForgotPasswordModal'
 
 /**
  * SB - Composant formulaire de connexion
@@ -15,7 +14,6 @@ function LoginForm() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
-  const [showForgotPassword, setShowForgotPassword] = useState(false)
 
   const navigate = useNavigate()
   const { login } = useAuth() // Use the login function from context
@@ -89,16 +87,6 @@ function LoginForm() {
         />
       </div>
 
-      <div className="text-center">
-        <button
-          type="button"
-          onClick={() => setShowForgotPassword(true)}
-          className="text-sm text-primary-500 hover:text-primary-600 font-medium"
-        >
-          Mot de passe oublié ?
-        </button>
-      </div>
-
       <Button type="submit" fullWidth disabled={loading}>
         {loading ? 'Connexion en cours...' : 'Se connecter'}
       </Button>
@@ -109,11 +97,6 @@ function LoginForm() {
           S'inscrire
         </Link>
       </p>
-
-      <ForgotPasswordModal
-        isOpen={showForgotPassword}
-        onClose={() => setShowForgotPassword(false)}
-      />
     </form>
   )
 }

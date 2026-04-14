@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { FiSearch, FiPlus, FiEdit2, FiTrash2, FiMail, FiUsers, FiChevronDown, FiChevronUp, FiX, FiCheck } from 'react-icons/fi'
+import { FiSearch, FiPlus, FiEdit2, FiTrash2, FiKey, FiUsers, FiChevronDown, FiChevronUp, FiX, FiCheck } from 'react-icons/fi'
 import Navbar from '../components/common/Navbar'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -36,6 +36,7 @@ function UserManagement() {
   })
   const [formErrors, setFormErrors] = useState({})
   const [successMessage, setSuccessMessage] = useState('')
+  const [resetModal, setResetModal] = useState({ open: false, email: '', password: '', confirmPassword: '', error: '' })
 
   const fetchUsers = async () => {
     try {
@@ -177,8 +178,21 @@ function UserManagement() {
     }
   }
 
-  const handleSendResetEmail = async (email) => {
-    setActionLoading(`reset-${email}`)
+  const handleResetPassword = async () => {
+    if (!resetModal.password || !resetModal.confirmPassword) {
+      setResetModal(prev => ({ ...prev, error: 'Veuillez remplir tous les champs' }))
+      return
+    }
+    if (resetModal.password !== resetModal.confirmPassword) {
+      setResetModal(prev => ({ ...prev, error: 'Les mots de passe ne correspondent pas' }))
+      return
+    }
+    if (resetModal.password.length < 6) {
+      setResetModal(prev => ({ ...prev, error: '6 caractères minimum' }))
+      return
+    }
+
+    setActionLoading(`reset-${resetModal.email}`)
     try {
       const response = await fetch('https://gsb-backend-nti4.onrender.com/auth/admin-reset-password', {
         method: 'POST',
@@ -186,15 +200,19 @@ function UserManagement() {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: resetModal.email, newPassword: resetModal.password }),
       })
 
-      if (response.ok) {
-        setSuccessMessage(`Email de réinitialisation envoyé à ${email}`)
-        setTimeout(() => setSuccessMessage(''), 3000)
+      if (!response.ok) {
+        const data = await response.json()
+        throw new Error(data.message || 'Erreur')
       }
+
+      setResetModal({ open: false, email: '', password: '', confirmPassword: '', error: '' })
+      setSuccessMessage(`Mot de passe réinitialisé pour ${resetModal.email}`)
+      setTimeout(() => setSuccessMessage(''), 3000)
     } catch (error) {
-      console.error('Error sending reset email:', error)
+      setResetModal(prev => ({ ...prev, error: error.message }))
     } finally {
       setActionLoading('')
     }
@@ -339,12 +357,12 @@ function UserManagement() {
                             </div>
                             <div className="col-span-2 flex items-center justify-end gap-1">
                               <button
-                                onClick={() => handleSendResetEmail(u.email)}
+                                onClick={() => setResetModal({ open: true, email: u.email, password: '', confirmPassword: '', error: '' })}
                                 disabled={actionLoading === `reset-${u.email}`}
                                 className="p-1.5 rounded-lg hover:bg-blue-50 text-blue-600 transition-colors disabled:opacity-50"
-                                title="Envoyer un email de reset"
+                                title="Réinitialiser le mot de passe"
                               >
-                                <FiMail className="w-4 h-4" />
+                                <FiKey className="w-4 h-4" />
                               </button>
                               <button
                                 onClick={() => openEditModal(u)}
@@ -488,6 +506,63 @@ function UserManagement() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Password Modal */}
+      {resetModal.open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full mx-4 animate-fade-in">
+            <div className="flex items-center justify-between p-5 border-b border-gray-100">
+              <h3 className="text-lg font-semibold text-gray-900">Réinitialiser le mot de passe</h3>
+              <button onClick={() => setResetModal({ open: false, email: '', password: '', confirmPassword: '', error: '' })} className="p-1 rounded-lg hover:bg-gray-100">
+                <FiX className="w-5 h-5 text-gray-400" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4">
+              <p className="text-sm text-gray-600">Nouveau mot de passe pour <strong>{resetModal.email}</strong></p>
+
+              {resetModal.error && (
+                <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">{resetModal.error}</div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nouveau mot de passe</label>
+                <input
+                  type="password"
+                  value={resetModal.password}
+                  onChange={(e) => setResetModal(prev => ({ ...prev, password: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Confirmer le mot de passe</label>
+                <input
+                  type="password"
+                  value={resetModal.confirmPassword}
+                  onChange={(e) => setResetModal(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 text-sm"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setResetModal({ open: false, email: '', password: '', confirmPassword: '', error: '' })}
+                  className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleResetPassword}
+                  disabled={actionLoading.startsWith('reset-')}
+                  className="px-4 py-2 text-sm font-medium text-white bg-primary-500 rounded-lg hover:bg-primary-600 disabled:opacity-50"
+                >
+                  {actionLoading.startsWith('reset-') ? 'Réinitialisation...' : 'Réinitialiser'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

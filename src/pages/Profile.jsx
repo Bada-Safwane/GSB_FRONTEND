@@ -1,15 +1,20 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FiUser, FiMail, FiBriefcase, FiShield, FiArrowLeft } from 'react-icons/fi'
+import { FiUser, FiMail, FiBriefcase, FiShield, FiArrowLeft, FiLock } from 'react-icons/fi'
 import Navbar from '../components/common/Navbar'
 import Button from '../components/common/Button'
 import Input from '../components/common/Input'
 import { useAuth } from '../contexts/AuthContext'
 
 function Profile() {
-  const { user: authUser, logout } = useAuth()
+  const { user: authUser, token, logout } = useAuth()
   const navigate = useNavigate()
   const [isEditing, setIsEditing] = useState(false)
+  const [showPasswordForm, setShowPasswordForm] = useState(false)
+  const [passwordData, setPasswordData] = useState({ currentPassword: '', newPassword: '', confirmPassword: '' })
+  const [passwordError, setPasswordError] = useState('')
+  const [passwordSuccess, setPasswordSuccess] = useState('')
+  const [passwordLoading, setPasswordLoading] = useState(false)
   const [user, setUser] = useState(null)
   const [formData, setFormData] = useState({
     firstName: '',
@@ -90,6 +95,48 @@ function Profile() {
   const handleLogout = async () => {
     await logout()
     navigate('/login')
+  }
+
+  const handlePasswordChange = async (e) => {
+    e.preventDefault()
+    setPasswordError('')
+    setPasswordSuccess('')
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setPasswordError('Les mots de passe ne correspondent pas')
+      return
+    }
+    if (passwordData.newPassword.length < 6) {
+      setPasswordError('Le nouveau mot de passe doit contenir au moins 6 caractères')
+      return
+    }
+
+    setPasswordLoading(true)
+    try {
+      const res = await fetch('https://gsb-backend-nti4.onrender.com/auth/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.message || 'Erreur')
+      setPasswordSuccess('Mot de passe modifié avec succès')
+      setPasswordData({ currentPassword: '', newPassword: '', confirmPassword: '' })
+      setTimeout(() => {
+        setShowPasswordForm(false)
+        setPasswordSuccess('')
+      }, 2000)
+    } catch (err) {
+      setPasswordError(err.message)
+    } finally {
+      setPasswordLoading(false)
+    }
   }
 
   if (!user) {
@@ -198,14 +245,61 @@ function Profile() {
                   </div>
                 </div>
 
-                <div className="pt-6 border-t border-gray-100 mt-6">
-                  <Button
-                    onClick={handleLogout}
-                    variant="secondary"
-                    className="text-error-500 border-error-500 hover:bg-error-500 hover:bg-opacity-10"
-                  >
-                    Se déconnecter
-                  </Button>
+                <div className="pt-6 border-t border-gray-100 mt-6 space-y-4">
+                  <div className="flex items-center gap-3">
+                    <Button
+                      onClick={() => { setShowPasswordForm(!showPasswordForm); setPasswordError(''); setPasswordSuccess(''); }}
+                      variant="secondary"
+                    >
+                      <FiLock className="w-4 h-4 mr-2 inline" />
+                      {showPasswordForm ? 'Annuler' : 'Changer le mot de passe'}
+                    </Button>
+                    <Button
+                      onClick={handleLogout}
+                      variant="secondary"
+                      className="text-error-500 border-error-500 hover:bg-error-500 hover:bg-opacity-10"
+                    >
+                      Se déconnecter
+                    </Button>
+                  </div>
+
+                  {showPasswordForm && (
+                    <form onSubmit={handlePasswordChange} className="space-y-3 max-w-md">
+                      {passwordError && (
+                        <div className="p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">{passwordError}</div>
+                      )}
+                      {passwordSuccess && (
+                        <div className="p-3 bg-green-50 border border-green-200 text-green-700 rounded-lg text-sm">{passwordSuccess}</div>
+                      )}
+                      <Input
+                        label="Mot de passe actuel"
+                        type="password"
+                        id="currentPassword"
+                        value={passwordData.currentPassword}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, currentPassword: e.target.value }))}
+                        required
+                      />
+                      <Input
+                        label="Nouveau mot de passe"
+                        type="password"
+                        id="newPassword"
+                        value={passwordData.newPassword}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, newPassword: e.target.value }))}
+                        required
+                      />
+                      <Input
+                        label="Confirmer le nouveau mot de passe"
+                        type="password"
+                        id="confirmPassword"
+                        value={passwordData.confirmPassword}
+                        onChange={(e) => setPasswordData(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                        required
+                      />
+                      <Button type="submit" disabled={passwordLoading}>
+                        {passwordLoading ? 'Modification...' : 'Valider'}
+                      </Button>
+                    </form>
+                  )}
                 </div>
               </div>
             )}

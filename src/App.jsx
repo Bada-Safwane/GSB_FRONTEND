@@ -4,7 +4,6 @@ import Login from './pages/Login'
 import Signup from './pages/Signup'
 import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
-import ResetPassword from './pages/ResetPassword'
 import UserManagement from './pages/UserManagement'
 import ProtectedRoute from './routes/ProtectedRoute'
 import './App.css'
@@ -19,7 +18,6 @@ function App() {
       <Routes>
         <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
         <Route path="/signup" element={!user ? <Signup /> : <Navigate to="/dashboard" />} />
-        <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <Dashboard />
