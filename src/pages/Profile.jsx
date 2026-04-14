@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FiUser, FiMail, FiBriefcase, FiShield } from 'react-icons/fi'
+import { FiUser, FiMail, FiBriefcase, FiShield, FiArrowLeft } from 'react-icons/fi'
 import Navbar from '../components/common/Navbar'
 import Button from '../components/common/Button'
 import Input from '../components/common/Input'
@@ -100,6 +100,13 @@ function Profile() {
     <div className="min-h-screen bg-gray-50">
       <Navbar />
       <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-6 transition-colors"
+        >
+          <FiArrowLeft className="w-5 h-5" />
+          <span>Retour à l'accueil</span>
+        </button>
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="bg-primary-500 h-32 relative">
             <div className="absolute -bottom-12 left-8">
