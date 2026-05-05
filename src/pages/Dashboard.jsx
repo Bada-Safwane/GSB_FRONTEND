@@ -367,6 +367,13 @@ function Dashboard() {
         title={previewInvoice?.type || 'Justificatif'}
       />
 
+      <RejectionReasonModal
+        isOpen={!!rejectionTarget}
+        onClose={() => setRejectionTarget(null)}
+        onConfirm={handleRejectionConfirm}
+        loading={rejectionLoading}
+      />
+
       {selectedInvoice && (
         <Modal
           isOpen={isViewModalOpen}
